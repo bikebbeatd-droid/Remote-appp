@@ -231,7 +231,7 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
             </p>
             <button
               onClick={() => setPowerOn(true)}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-400 hover:ring-2 hover:ring-indigo-400/50"
             >
               <Power className="w-4 h-4 text-emerald-400" />
               <span>Wake TV Display</span>
@@ -255,7 +255,7 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
                 </div>
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="px-3 py-1 bg-indigo-800 hover:bg-indigo-700 text-xs font-medium rounded-lg text-white"
+                  className="px-4 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-xs font-bold rounded-lg text-white outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-300 transition-all cursor-pointer"
                 >
                   Dismiss
                 </button>
@@ -338,7 +338,7 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
               </div>
               <button
                 onClick={() => setShowManagePhones(false)}
-                className="text-zinc-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-zinc-800"
+                className="text-zinc-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-xl bg-zinc-800 outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-400 transition-all"
               >
                 Close (ESC)
               </button>
@@ -368,7 +368,7 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
 
             <button
               onClick={() => setShowManagePhones(false)}
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-300 transition-all"
             >
               Done
             </button>

@@ -42,12 +42,19 @@ export type TvPlatform =
   | "sony_bravia"
   | "philips"
   | "fire_tv"
+  | "panasonic_viera"
+  | "vizio_smartcast"
+  | "apple_tv"
+  | "hisense_vidaa"
+  | "ir_universal"
   | "generic";
 
 export interface TvDevice {
   id: string;
   name: string;
   model: string;
+  brand?: string;
+  series?: string;
   platform: TvPlatform;
   ip: string;
   port: number;

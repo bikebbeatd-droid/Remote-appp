@@ -136,5 +136,25 @@ export class TokenVault {
       localStorage.setItem(ACTIVE_DEVICE_KEY, id);
     } catch {}
   }
+
+  static isOnboardingCompleted(): boolean {
+    try {
+      return localStorage.getItem("ustv_onboarding_completed") === "true";
+    } catch {
+      return false;
+    }
+  }
+
+  static setOnboardingCompleted(completed: boolean): void {
+    try {
+      localStorage.setItem("ustv_onboarding_completed", completed ? "true" : "false");
+    } catch {}
+  }
+
+  static resetOnboarding(): void {
+    try {
+      localStorage.removeItem("ustv_onboarding_completed");
+    } catch {}
+  }
 }
 

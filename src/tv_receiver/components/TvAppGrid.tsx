@@ -65,12 +65,12 @@ export const TvAppGrid: React.FC<TvAppGridProps> = ({
               key={app.id}
               id={`tv-app-tile-${app.id}`}
               onClick={() => onLaunchApp(app)}
-              className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 cursor-pointer text-center group ${
+              className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 cursor-pointer text-center group outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-400 ${
                 isFocused
-                  ? "bg-zinc-800 ring-4 ring-indigo-400 scale-105 shadow-2xl shadow-indigo-600/50 z-10"
+                  ? "bg-zinc-800 ring-4 ring-offset-4 ring-offset-zinc-950 ring-indigo-400 tv-focused-element shadow-2xl shadow-indigo-600/60"
                   : isActive
-                  ? "bg-zinc-850 border-2 border-indigo-500/80 shadow-lg shadow-indigo-900/30"
-                  : "bg-zinc-900/90 border border-zinc-800 hover:bg-zinc-800"
+                  ? "bg-zinc-850 border-2 border-indigo-500/80 shadow-lg shadow-indigo-900/30 hover:ring-2 hover:ring-indigo-400/50"
+                  : "bg-zinc-900/90 border border-zinc-800 hover:bg-zinc-800 hover:ring-2 hover:ring-indigo-500/40"
               }`}
             >
               {/* Active Playing Badge */}

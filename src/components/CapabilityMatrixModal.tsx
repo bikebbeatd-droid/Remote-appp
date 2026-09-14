@@ -18,7 +18,8 @@ interface CapabilityMatrixModalProps {
   device: TvDevice | null;
   isOpen: boolean;
   onClose: () => void;
-  onOpenPairing: () => void;
+  onOpenPairing?: () => void;
+  onOpenProtocolDocs?: () => void;
 }
 
 const CAPABILITY_DESCRIPTIONS: Record<keyof DeviceCapabilities, { desc: string; hardwareNote?: string }> = {
@@ -41,7 +42,8 @@ export const CapabilityMatrixModal: React.FC<CapabilityMatrixModalProps> = ({
   device,
   isOpen,
   onClose,
-  onOpenPairing
+  onOpenPairing,
+  onOpenProtocolDocs
 }) => {
   if (!isOpen || !device) return null;
 
@@ -79,13 +81,26 @@ export const CapabilityMatrixModal: React.FC<CapabilityMatrixModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            id="close-cap-matrix-btn"
-            onClick={onClose}
-            className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenProtocolDocs && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenProtocolDocs();
+                }}
+                className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <span>Full Protocol Specs</span>
+              </button>
+            )}
+            <button
+              id="close-cap-matrix-btn"
+              onClick={onClose}
+              className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Legend */}

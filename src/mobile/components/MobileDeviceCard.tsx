@@ -1,6 +1,20 @@
 import React from "react";
 import { TvDevice, ConnectionState } from "../../core/types";
-import { Tv, ChevronDown, Mic, Layers, Wrench, Search, RefreshCw, Smartphone } from "lucide-react";
+import { 
+  Tv, 
+  ChevronDown, 
+  Mic, 
+  Layers, 
+  Wrench, 
+  Search, 
+  Radio, 
+  ShieldCheck, 
+  LayoutGrid, 
+  Zap,
+  BookOpen,
+  Camera,
+  QrCode
+} from "lucide-react";
 
 interface MobileDeviceCardProps {
   device: TvDevice | null;
@@ -8,6 +22,7 @@ interface MobileDeviceCardProps {
   onOpenTvSelector: () => void;
   onOpenVoiceRemote: () => void;
   onOpenCapabilityMatrix: () => void;
+  onOpenQrScanner?: () => void;
   onOpenPairing?: () => void;
   onOpenDiagnostics?: () => void;
   onOpenButtonMapper?: () => void;
@@ -15,6 +30,9 @@ interface MobileDeviceCardProps {
   onOpenLearnRemote?: () => void;
   onOpenScenes?: () => void;
   onOpenShareProfile?: () => void;
+  onOpenRemoteLibrary?: () => void;
+  onOpenCompatibilityCenter?: () => void;
+  onOpenIrBlaster?: () => void;
 }
 
 export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
@@ -23,13 +41,17 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
   onOpenTvSelector,
   onOpenVoiceRemote,
   onOpenCapabilityMatrix,
+  onOpenQrScanner,
   onOpenPairing,
   onOpenDiagnostics,
   onOpenButtonMapper,
   onOpenCustomBuilder,
   onOpenLearnRemote,
   onOpenScenes,
-  onOpenShareProfile
+  onOpenShareProfile,
+  onOpenRemoteLibrary,
+  onOpenCompatibilityCenter,
+  onOpenIrBlaster
 }) => {
   const [showToolsMenu, setShowToolsMenu] = React.useState(false);
 
@@ -134,8 +156,20 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
         </button>
       )}
 
-      {/* Actions: Voice & Tools */}
+      {/* Actions: QR Scanner, Voice, Capabilities & Tools Menu */}
       <div className="flex items-center gap-1.5 shrink-0">
+        {onOpenQrScanner && (
+          <button
+            id="mobile-scan-qr-btn"
+            onClick={onOpenQrScanner}
+            className="p-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 active:scale-95 text-indigo-300 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+            title="Scan TV Screen QR Code"
+          >
+            <Camera className="w-4 h-4 text-indigo-400" />
+            <span className="text-[11px] font-bold hidden sm:inline">Scan TV</span>
+          </button>
+        )}
+
         <button
           id="mobile-voice-btn"
           onClick={onOpenVoiceRemote}
@@ -159,7 +193,7 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
             id="mobile-tools-btn"
             onClick={() => setShowToolsMenu(!showToolsMenu)}
             className="p-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-300 rounded-xl transition-all cursor-pointer"
-            title="Advanced Tools"
+            title="Advanced Remote Suite"
           >
             <Wrench className="w-4 h-4 text-amber-400" />
           </button>
@@ -167,30 +201,64 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
           {showToolsMenu && (
             <div
               id="mobile-tools-popover"
-              className="absolute right-0 top-12 w-52 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100"
+              className="absolute right-0 top-12 w-60 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100"
             >
+              {onOpenQrScanner && (
+                <button
+                  onClick={() => { setShowToolsMenu(false); onOpenQrScanner(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-indigo-300 hover:bg-indigo-950/40 hover:text-white rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <Camera className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Scan TV Screen QR Code</span>
+                </button>
+              )}
+
+              {onOpenRemoteLibrary && (
+                <button
+                  onClick={() => { setShowToolsMenu(false); onOpenRemoteLibrary(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-indigo-300 hover:bg-indigo-950/40 hover:text-white rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Global Remote Library</span>
+                </button>
+              )}
+
+              {onOpenCompatibilityCenter && (
+                <button
+                  onClick={() => { setShowToolsMenu(false); onOpenCompatibilityCenter(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-emerald-300 hover:bg-emerald-950/40 hover:text-white rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Check My TV Compatibility</span>
+                </button>
+              )}
+
+              {onOpenIrBlaster && (
+                <button
+                  onClick={() => { setShowToolsMenu(false); onOpenIrBlaster(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-orange-300 hover:bg-orange-950/40 hover:text-white rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <Radio className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Consumer IR Blaster</span>
+                </button>
+              )}
+
+              <div className="h-px bg-zinc-800 my-1" />
+
+              {onOpenCustomBuilder && (
+                <button
+                  onClick={() => { setShowToolsMenu(false); onOpenCustomBuilder(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl transition-colors cursor-pointer"
+                >
+                  Create Custom Remote Deck
+                </button>
+              )}
               {onOpenButtonMapper && (
                 <button
                   onClick={() => { setShowToolsMenu(false); onOpenButtonMapper(); }}
                   className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
                   Custom Button Mapper
-                </button>
-              )}
-              {onOpenCustomBuilder && (
-                <button
-                  onClick={() => { setShowToolsMenu(false); onOpenCustomBuilder(); }}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  Create Custom Remote
-                </button>
-              )}
-              {onOpenLearnRemote && (
-                <button
-                  onClick={() => { setShowToolsMenu(false); onOpenLearnRemote(); }}
-                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl transition-colors cursor-pointer"
-                >
-                  Learn IR / Protocol Codes
                 </button>
               )}
               {onOpenScenes && (

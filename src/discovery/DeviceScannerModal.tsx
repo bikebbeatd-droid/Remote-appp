@@ -17,7 +17,8 @@ import {
   Server,
   Sliders,
   ChevronRight,
-  Info
+  Info,
+  Camera
 } from "lucide-react";
 
 interface DeviceScannerModalProps {
@@ -29,6 +30,7 @@ interface DeviceScannerModalProps {
   onPairDevice?: (device: TvDevice) => void;
   onRefreshDevices?: () => Promise<void>;
   onDevicePaired?: (device: TvDevice) => void;
+  onOpenQrScanner?: () => void;
 }
 
 export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
@@ -39,7 +41,8 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   onSelectDevice,
   onPairDevice,
   onRefreshDevices,
-  onDevicePaired
+  onDevicePaired,
+  onOpenQrScanner
 }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [manualIp, setManualIp] = useState("");
@@ -138,6 +141,32 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Quick QR Camera Scanner Banner */}
+          {onOpenQrScanner && (
+            <div className="p-3.5 bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/40 rounded-xl flex items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-300">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Instant QR Code Pairing</h4>
+                  <p className="text-[11px] text-zinc-400">Point your camera at the QR code displayed on the TV screen</p>
+                </div>
+              </div>
+              <button
+                id="scanner-open-qr-camera-btn"
+                onClick={() => {
+                  onClose();
+                  onOpenQrScanner();
+                }}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-all shadow-md shadow-indigo-600/30 flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Scan QR</span>
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center justify-between text-xs text-zinc-400 px-1 pb-1">
             <span>Discovered Devices on Local Network ({safeDeviceList.length})</span>

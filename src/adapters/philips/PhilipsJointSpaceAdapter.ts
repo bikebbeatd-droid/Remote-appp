@@ -1,8 +1,8 @@
 import { TvAdapter } from "../types";
 import { TvDevice, RemoteCommandType, CommandExecutionResult, DeviceCapabilities } from "../../core/types";
 
-export class RokuAdapter implements TvAdapter {
-  readonly platform = "roku";
+export class PhilipsJointSpaceAdapter implements TvAdapter {
+  readonly platform = "philips";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
     return {
@@ -11,10 +11,10 @@ export class RokuAdapter implements TvAdapter {
       volume: "SUPPORTED",
       media: "SUPPORTED",
       keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED", // Roku ECP does NOT have a pointer/touchpad protocol!
+      touchpad: "UNSUPPORTED",
       apps: "SUPPORTED",
       input: "SUPPORTED",
-      voice: "SUPPORTED",
+      voice: "UNSUPPORTED",
       channels: "SUPPORTED",
       ir: "UNSUPPORTED",
       bluetooth: "UNSUPPORTED",
@@ -22,47 +22,47 @@ export class RokuAdapter implements TvAdapter {
     };
   }
 
-  /**
-   * Translates unified remote command to Roku ECP key identifier
-   */
-  private mapRokuKey(command: RemoteCommandType, value?: any): string | null {
+  private mapJointSpaceKey(command: RemoteCommandType): string | null {
     switch (command) {
+      case "POWER": return "Standby";
       case "HOME": return "Home";
       case "BACK": return "Back";
-      case "UP": return "Up";
-      case "DOWN": return "Down";
-      case "LEFT": return "Left";
-      case "RIGHT": return "Right";
-      case "OK": return "Select";
+      case "MENU": return "Options";
+      case "UP": return "CursorUp";
+      case "DOWN": return "CursorDown";
+      case "LEFT": return "CursorLeft";
+      case "RIGHT": return "CursorRight";
+      case "OK": return "Confirm";
       case "VOLUME_UP": return "VolumeUp";
       case "VOLUME_DOWN": return "VolumeDown";
-      case "MUTE": return "VolumeMute";
-      case "PLAY":
-      case "PAUSE":
-      case "PLAY_PAUSE": return "Play";
+      case "MUTE": return "Mute";
+      case "PLAY": return "Play";
+      case "PAUSE": return "Pause";
+      case "PLAY_PAUSE": return "PlayPause";
       case "STOP": return "Stop";
-      case "REWIND": return "Rev";
-      case "FAST_FORWARD": return "Fwd";
-      case "PREVIOUS": return "InstantReplay";
-      case "NEXT": return "Fwd";
-      case "POWER": return "Power";
-      case "INPUT": return "InputTuner";
+      case "REWIND": return "Rewind";
+      case "FAST_FORWARD": return "FastForward";
+      case "PREVIOUS": return "Previous";
+      case "NEXT": return "Next";
+      case "INPUT": return "Source";
       case "INFO": return "Info";
-      case "GUIDE": return "Guide";
-      case "CHANNEL_UP": return "ChannelUp";
-      case "CHANNEL_DOWN": return "ChannelDown";
-      case "KEYBOARD_BACKSPACE": return "Backspace";
-      case "KEYBOARD_ENTER": return "Enter";
-      case "NUMBER_0": return "Lit_0";
-      case "NUMBER_1": return "Lit_1";
-      case "NUMBER_2": return "Lit_2";
-      case "NUMBER_3": return "Lit_3";
-      case "NUMBER_4": return "Lit_4";
-      case "NUMBER_5": return "Lit_5";
-      case "NUMBER_6": return "Lit_6";
-      case "NUMBER_7": return "Lit_7";
-      case "NUMBER_8": return "Lit_8";
-      case "NUMBER_9": return "Lit_9";
+      case "GUIDE": return "TvGuide";
+      case "CHANNEL_UP": return "ChannelStepUp";
+      case "CHANNEL_DOWN": return "ChannelStepDown";
+      case "NUMBER_0": return "Digit0";
+      case "NUMBER_1": return "Digit1";
+      case "NUMBER_2": return "Digit2";
+      case "NUMBER_3": return "Digit3";
+      case "NUMBER_4": return "Digit4";
+      case "NUMBER_5": return "Digit5";
+      case "NUMBER_6": return "Digit6";
+      case "NUMBER_7": return "Digit7";
+      case "NUMBER_8": return "Digit8";
+      case "NUMBER_9": return "Digit9";
+      case "COLOR_RED": return "RedColour";
+      case "COLOR_GREEN": return "GreenColour";
+      case "COLOR_YELLOW": return "YellowColour";
+      case "COLOR_BLUE": return "BlueColour";
       default: return null;
     }
   }
@@ -73,17 +73,7 @@ export class RokuAdapter implements TvAdapter {
     value?: any
   ): Promise<CommandExecutionResult> {
     const startTime = performance.now();
-
-    // Reject Touchpad honestly
-    if (command === "TOUCHPAD_MOVE" || command === "TOUCHPAD_CLICK") {
-      return {
-        success: false,
-        command,
-        timestamp: Date.now(),
-        latencyMs: 0,
-        error: "Touchpad is UNSUPPORTED on this device: Roku OS has no pointer subsystem."
-      };
-    }
+    const key = this.mapJointSpaceKey(command);
 
     try {
       const res = await fetch("/api/command", {
@@ -92,8 +82,9 @@ export class RokuAdapter implements TvAdapter {
         body: JSON.stringify({
           deviceId: device.id,
           command,
+          mappedKey: key,
           value,
-          protocol: "roku_ecp"
+          protocol: "philips_jointspace_rest"
         })
       });
 
@@ -107,7 +98,7 @@ export class RokuAdapter implements TvAdapter {
           value,
           timestamp: Date.now(),
           latencyMs,
-          error: data.error || "Roku ECP command execution failed. Ensure 'Control by mobile apps' is enabled in Roku Settings > System > Advanced system settings."
+          error: data.error || "Philips JointSpace command failed."
         };
       }
 
@@ -117,7 +108,7 @@ export class RokuAdapter implements TvAdapter {
         value,
         timestamp: Date.now(),
         latencyMs,
-        protocol: "roku_ecp"
+        protocol: "philips_jointspace_rest"
       };
     } catch (err: any) {
       return {
@@ -126,29 +117,28 @@ export class RokuAdapter implements TvAdapter {
         value,
         timestamp: Date.now(),
         latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Roku at ${device.ip}:8060. Check local Wi-Fi subnet.`
+        error: `Could not reach Philips JointSpace at ${device.ip}:1925.`
       };
     }
   }
 
   async authenticate(
-    device: TvDevice
+    device: TvDevice,
+    pin: string
   ): Promise<{ success: boolean; token?: string; error?: string }> {
-    // Roku ECP does not require an authentication PIN if Control by mobile apps is enabled
     return {
       success: true,
-      token: "roku_ecp_open"
+      token: "jointspace_open"
     };
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
     const start = performance.now();
     try {
-      // ECP ping to /query/device-info
-      const res = await fetch(`/api/devices/probe`, {
+      const res = await fetch("/api/devices/probe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 8060, protocol: "roku_ecp" })
+        body: JSON.stringify({ ip: device.ip, port: device.port || 1925, protocol: "philips_jointspace_rest" })
       });
       const latencyMs = Math.round(performance.now() - start);
       return { online: res.ok, latencyMs };
@@ -157,4 +147,3 @@ export class RokuAdapter implements TvAdapter {
     }
   }
 }
-

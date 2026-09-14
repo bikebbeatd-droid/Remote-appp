@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { TvDevice } from "../core/types";
-import { Tv, Volume2, VolumeX, Radio, CheckCircle, Wifi, Monitor, Play, AppWindow } from "lucide-react";
+import { Tv, Volume2, VolumeX, Radio, CheckCircle, Wifi, Monitor, Play, AppWindow, QrCode } from "lucide-react";
+import { QrPairingService } from "../pairing/qrService";
 
 interface TvReceiverScreenProps {
   device: TvDevice | null;
@@ -19,6 +20,15 @@ export const TvReceiverScreen: React.FC<TvReceiverScreenProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [channel, setChannel] = useState(7);
   const [recentNotification, setRecentNotification] = useState<string | null>(null);
+  const [showPairingQr, setShowPairingQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+
+  const activePin = pairingPin || (device?.isPaired ? "PAIRED" : "4821");
+
+  useEffect(() => {
+    const payload = QrPairingService.createPairingPayload(device, activePin);
+    QrPairingService.generateQrDataUrl(payload, 200).then(url => setQrDataUrl(url));
+  }, [device, activePin]);
 
   // Synchronize state when real commands arrive from remote
   useEffect(() => {
@@ -143,9 +153,31 @@ export const TvReceiverScreen: React.FC<TvReceiverScreenProps> = ({
               </div>
             </div>
 
-            {/* Center Area: Apps or Pairing PIN Display */}
-            <div className="my-auto text-center space-y-3 z-10">
-              {pairingPin ? (
+            {/* Center Area: Apps or Pairing PIN / QR Code Display */}
+            <div className="my-auto text-center space-y-3 z-10 flex flex-col items-center">
+              {showPairingQr ? (
+                <div className="p-4 bg-zinc-900/95 border-2 border-indigo-400 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col items-center space-y-2 animate-in fade-in zoom-in-95 max-w-xs">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-300 flex items-center gap-1">
+                    <QrCode className="w-3.5 h-3.5" />
+                    Scan with Phone Remote
+                  </span>
+                  <div className="p-2 bg-white rounded-xl shadow-lg">
+                    {qrDataUrl && (
+                      <img src={qrDataUrl} alt="TV Pairing QR Code" className="w-36 h-36 object-contain" />
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[10px] text-zinc-400">Pairing PIN: </span>
+                    <span className="font-mono font-bold text-sm text-indigo-200">{activePin}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowPairingQr(false)}
+                    className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-[10px] font-bold"
+                  >
+                    Hide QR
+                  </button>
+                </div>
+              ) : pairingPin ? (
                 <div className="max-w-xs mx-auto p-4 bg-indigo-950/90 border-2 border-indigo-400 rounded-2xl shadow-2xl backdrop-blur-md animate-bounce">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-300">
                     Pairing Request From Mobile
@@ -158,13 +190,21 @@ export const TvReceiverScreen: React.FC<TvReceiverScreenProps> = ({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <h2 className="text-xl sm:text-2xl font-black text-white tracking-wide">
                     {currentApp === "Google TV Home" ? "Ready to Stream" : currentApp}
                   </h2>
                   <p className="text-xs text-zinc-400">
                     {device?.name || "Smart TV"} • Listening for incoming controller commands
                   </p>
+                  <button
+                    id="show-tv-qr-btn"
+                    onClick={() => setShowPairingQr(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/40 text-indigo-200 rounded-xl text-xs font-semibold backdrop-blur-sm cursor-pointer transition-all shadow-md"
+                  >
+                    <QrCode className="w-3.5 h-3.5 text-indigo-300" />
+                    <span>Display Pairing QR Code</span>
+                  </button>
                 </div>
               )}
             </div>

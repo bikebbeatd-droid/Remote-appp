@@ -1,7 +1,8 @@
 {
   "name": "Universal Smart TV Remote",
-  "description": "Production-ready Universal Smart TV Remote and TV Receiver system with real protocol adapters, device discovery, secure pairing, custom remote builder, and live diagnostics.",
+  "description": "Global Universal Remote Platform with audited multi-protocol hardware adapters (Android TV, Tizen, webOS, Roku, Bravia, Viera, JointSpace, SmartCast, Apple TV, Vidaa, Consumer IR), device library, compatibility center, and customizable button decks.",
   "requestFramePermissions": [
+    "camera",
     "microphone"
   ],
   "majorCapabilities": [

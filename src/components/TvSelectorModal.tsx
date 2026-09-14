@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TvDevice } from "../core/types";
-import { Tv, Star, Edit3, Trash2, Check, Lock, Unlock, Plus, X, Laptop, Radio, Monitor } from "lucide-react";
+import { Tv, Star, Edit3, Trash2, Check, Lock, Unlock, Plus, X, Laptop, Radio, Monitor, Camera, QrCode, Wifi } from "lucide-react";
 
 interface TvSelectorModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface TvSelectorModalProps {
   onRemoveDevice: (deviceId: string) => void;
   onOpenScanner: () => void;
   onOpenPairing: (device: TvDevice) => void;
+  onOpenQrScanner?: () => void;
 }
 
 export const TvSelectorModal: React.FC<TvSelectorModalProps> = ({
@@ -23,7 +24,8 @@ export const TvSelectorModal: React.FC<TvSelectorModalProps> = ({
   onUpdateDevice,
   onRemoveDevice,
   onOpenScanner,
-  onOpenPairing
+  onOpenPairing,
+  onOpenQrScanner
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -192,18 +194,32 @@ export const TvSelectorModal: React.FC<TvSelectorModalProps> = ({
           }))}
         </div>
 
-        {/* Add New TV */}
-        <div className="p-4 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between">
+        {/* Add New TV / Scan Actions */}
+        <div className="p-4 border-t border-zinc-800 bg-zinc-950 flex flex-col sm:flex-row items-center gap-2">
+          {onOpenQrScanner && (
+            <button
+              id="open-qr-scanner-from-selector-btn"
+              onClick={() => {
+                onClose();
+                onOpenQrScanner();
+              }}
+              className="w-full sm:flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Scan TV Screen QR</span>
+            </button>
+          )}
+
           <button
             id="open-scanner-from-selector-btn"
             onClick={() => {
               onClose();
               onOpenScanner();
             }}
-            className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-colors border border-zinc-700"
+            className="w-full sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-colors border border-zinc-700 cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-indigo-400" />
-            <span>Scan Network for New TV</span>
+            <Wifi className="w-4 h-4 text-emerald-400" />
+            <span>Scan Wi-Fi Network</span>
           </button>
         </div>
       </div>

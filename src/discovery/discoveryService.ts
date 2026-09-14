@@ -39,6 +39,8 @@ export class DiscoveryService {
       }
 
       const dev = data.device;
+      const storedToken = TokenVault.getToken(dev.id);
+      const isPaired = !dev.requiresPairing || !!storedToken;
       const device: TvDevice = {
         id: dev.id,
         name: dev.name,
@@ -47,10 +49,11 @@ export class DiscoveryService {
         ip: dev.ip,
         port: dev.port,
         protocol: dev.protocol,
-        requiresPairing: true,
-        isPaired: false,
+        requiresPairing: dev.requiresPairing ?? true,
+        isPaired,
         isOnline: true,
-        capabilities: {
+        token: storedToken || dev.token,
+        capabilities: dev.capabilities || {
           power: "SUPPORTED",
           navigation: "SUPPORTED",
           volume: "SUPPORTED",

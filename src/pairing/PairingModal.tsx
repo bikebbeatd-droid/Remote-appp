@@ -1,24 +1,28 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { TvDevice } from "../core/types";
 import { TransportRegistry } from "../transports/TransportRegistry";
 import { TokenVault } from "./tokenVault";
-import { Shield, KeyRound, QrCode, CheckCircle2, AlertCircle, RefreshCw, X, ArrowRight, Laptop, Tv } from "lucide-react";
+import { Shield, KeyRound, QrCode, CheckCircle2, AlertCircle, RefreshCw, X, ArrowRight, Laptop, Tv, Camera } from "lucide-react";
+import { QrCodeView } from "../components/QrCodeView";
+import { buildTvPairingPayload } from "../utils/qrCodeGenerator";
 
 interface PairingModalProps {
   device: TvDevice;
   isOpen: boolean;
   onClose: () => void;
   onPairedSuccess: (updatedDevice: TvDevice) => void;
+  onOpenScanner?: () => void;
 }
 
 export const PairingModal: React.FC<PairingModalProps> = ({
   device,
   isOpen,
   onClose,
-  onPairedSuccess
+  onPairedSuccess,
+  onOpenScanner
 }) => {
   const [pinDigits, setPinDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [activeTab, setActiveTab] = useState<"pin" | "qr" | "confirm">("pin");
+  const [activeTab, setActiveTab] = useState<"pin" | "qr">("pin");
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -26,6 +30,10 @@ export const PairingModal: React.FC<PairingModalProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(900); // 15 mins
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const { pairingUrl } = useMemo(() => {
+    return buildTvPairingPayload(device, currentTvPin || "4821");
+  }, [device, currentTvPin]);
 
   // Fetch live TV receiver PIN so user can see it if testing on same screen or companion
   useEffect(() => {
@@ -271,57 +279,48 @@ export const PairingModal: React.FC<PairingModalProps> = ({
           {activeTab === "qr" && (
             <div className="space-y-4 text-center">
               <p className="text-xs text-zinc-400">
-                Point your phone camera at the QR code displayed on the TV Receiver screen, or scan this pairing payload:
+                Scan the QR code displayed on your TV screen using your phone's camera, or scan this pairing link:
               </p>
               
-              <div className="p-4 bg-white rounded-2xl inline-block shadow-inner mx-auto">
-                {/* SVG QR Code representation */}
-                <svg className="w-40 h-40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="100" height="100" fill="white" />
-                  {/* Outer corner boxes */}
-                  <rect x="10" y="10" width="26" height="26" fill="black" />
-                  <rect x="14" y="14" width="18" height="18" fill="white" />
-                  <rect x="18" y="18" width="10" height="10" fill="black" />
-
-                  <rect x="64" y="10" width="26" height="26" fill="black" />
-                  <rect x="68" y="14" width="18" height="18" fill="white" />
-                  <rect x="72" y="18" width="10" height="10" fill="black" />
-
-                  <rect x="10" y="64" width="26" height="26" fill="black" />
-                  <rect x="14" y="68" width="18" height="18" fill="white" />
-                  <rect x="18" y="72" width="10" height="10" fill="black" />
-
-                  {/* Pattern dots */}
-                  <rect x="42" y="14" width="6" height="6" fill="black" />
-                  <rect x="52" y="14" width="6" height="6" fill="black" />
-                  <rect x="42" y="24" width="6" height="6" fill="black" />
-                  <rect x="48" y="34" width="10" height="6" fill="black" />
-                  <rect x="64" y="42" width="8" height="6" fill="black" />
-                  <rect x="76" y="42" width="8" height="6" fill="black" />
-                  <rect x="42" y="46" width="14" height="10" fill="black" />
-                  <rect x="64" y="58" width="12" height="12" fill="black" />
-                  <rect x="80" y="58" width="6" height="6" fill="black" />
-                  <rect x="42" y="68" width="8" height="6" fill="black" />
-                  <rect x="54" y="76" width="6" height="10" fill="black" />
-                  <rect x="64" y="76" width="12" height="6" fill="black" />
-                  <rect x="80" y="74" width="6" height="12" fill="black" />
-                </svg>
+              <div className="mx-auto flex justify-center">
+                <QrCodeView
+                  value={pairingUrl}
+                  size={150}
+                  showControls={true}
+                  altText={`Pairing QR for ${device.name}`}
+                />
               </div>
 
               <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 text-left text-[11px] font-mono text-zinc-400 truncate">
-                ustv://pair?dev={device.id}&ip={device.ip}&proto={device.protocol}
+                {pairingUrl}
               </div>
 
-              <button
-                id="simulate-qr-scan-btn"
-                onClick={() => {
-                  if (currentTvPin) handleFillCode(currentTvPin);
-                  setActiveTab("pin");
-                }}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-xl transition-colors"
-              >
-                Scan from TV Companion Screen
-              </button>
+              <div className="flex flex-col gap-2 pt-1">
+                {onOpenScanner && (
+                  <button
+                    id="open-camera-scanner-modal-btn"
+                    onClick={() => {
+                      onClose();
+                      onOpenScanner();
+                    }}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Open Mobile Camera QR Scanner</span>
+                  </button>
+                )}
+
+                <button
+                  id="simulate-qr-scan-btn"
+                  onClick={() => {
+                    if (currentTvPin) handleFillCode(currentTvPin);
+                    setActiveTab("pin");
+                  }}
+                  className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+                >
+                  Auto-fill code from TV screen
+                </button>
+              </div>
             </div>
           )}
 

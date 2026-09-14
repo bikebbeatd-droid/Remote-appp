@@ -21,6 +21,7 @@ interface MobileRemoteViewProps {
   isSending: boolean;
   onOpenTvSelector: () => void;
   onOpenCapabilityMatrix: () => void;
+  onOpenQrScanner?: () => void;
   onOpenPairing?: () => void;
   onOpenVoiceRemote: () => void;
   onOpenButtonMapper?: () => void;
@@ -29,6 +30,9 @@ interface MobileRemoteViewProps {
   onOpenDiagnostics?: () => void;
   onOpenScenes?: () => void;
   onOpenShareProfile?: () => void;
+  onOpenRemoteLibrary?: () => void;
+  onOpenCompatibilityCenter?: () => void;
+  onOpenIrBlaster?: () => void;
   onUnsupportedAttempt?: (reason: string) => void;
 }
 
@@ -41,6 +45,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
   isSending,
   onOpenTvSelector,
   onOpenCapabilityMatrix,
+  onOpenQrScanner,
   onOpenPairing,
   onOpenVoiceRemote,
   onOpenButtonMapper,
@@ -49,6 +54,9 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
   onOpenDiagnostics,
   onOpenScenes,
   onOpenShareProfile,
+  onOpenRemoteLibrary,
+  onOpenCompatibilityCenter,
+  onOpenIrBlaster,
   onUnsupportedAttempt
 }) => {
   return (
@@ -61,6 +69,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
         onOpenTvSelector={onOpenTvSelector}
         onOpenVoiceRemote={onOpenVoiceRemote}
         onOpenCapabilityMatrix={onOpenCapabilityMatrix}
+        onOpenQrScanner={onOpenQrScanner}
         onOpenPairing={onOpenPairing}
         onOpenDiagnostics={onOpenDiagnostics}
         onOpenButtonMapper={onOpenButtonMapper}
@@ -68,6 +77,9 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
         onOpenLearnRemote={onOpenLearnRemote}
         onOpenScenes={onOpenScenes}
         onOpenShareProfile={onOpenShareProfile}
+        onOpenRemoteLibrary={onOpenRemoteLibrary}
+        onOpenCompatibilityCenter={onOpenCompatibilityCenter}
+        onOpenIrBlaster={onOpenIrBlaster}
       />
 
       {/* 2. Mobile Mode Switcher Bar */}
