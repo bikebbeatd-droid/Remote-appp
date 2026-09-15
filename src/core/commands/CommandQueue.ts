@@ -62,6 +62,18 @@ export class CommandQueue {
   ): Promise<CommandExecutionResult> {
     const now = Date.now();
 
+    const generateId = () => {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return "cmd_" + crypto.randomUUID().replace(/-/g, "").substring(0, 12);
+      }
+      if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+        const arr = new Uint32Array(2);
+        crypto.getRandomValues(arr);
+        return "cmd_" + arr[0].toString(36) + arr[1].toString(36);
+      }
+      return "cmd_" + Date.now().toString(36) + "_" + (performance.now() * 1000).toFixed(0);
+    };
+
     // Check debounce for non-rapid commands
     if (
       this.lastExecutedCommand &&
@@ -75,7 +87,7 @@ export class CommandQueue {
       command !== "RIGHT"
     ) {
       const droppedItem: QueuedCommand = {
-        id: "cmd_" + Math.random().toString(36).substring(2, 9),
+        id: generateId(),
         deviceId: device.id,
         command,
         value,
@@ -94,7 +106,7 @@ export class CommandQueue {
     }
 
     const commandItem: QueuedCommand = {
-      id: "cmd_" + Math.random().toString(36).substring(2, 9) + "_" + now.toString(36),
+      id: generateId() + "_" + now.toString(36),
       deviceId: device.id,
       command,
       value,

@@ -70,7 +70,18 @@ export class FireTvAdapter implements TvAdapter {
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    return { online: true, latencyMs: 15 };
+    const start = performance.now();
+    try {
+      const res = await fetch("/api/devices/probe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: device.ip, port: device.port || 8008, protocol: "fire_tv_dial" })
+      });
+      const latencyMs = Math.round(performance.now() - start);
+      return { online: res.ok, latencyMs };
+    } catch (err: any) {
+      return { online: false, error: err.message };
+    }
   }
 }
 
@@ -119,7 +130,8 @@ export class GenericAdapter implements TvAdapter {
         value,
         timestamp: Date.now(),
         latencyMs: Math.round(performance.now() - startTime),
-        protocol: "generic_http"
+        protocol: "generic_http",
+        error: data.error
       };
     } catch (err: any) {
       return {
@@ -138,6 +150,17 @@ export class GenericAdapter implements TvAdapter {
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    return { online: true, latencyMs: 20 };
+    const start = performance.now();
+    try {
+      const res = await fetch("/api/devices/probe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: device.ip, port: device.port || 80, protocol: "generic_http" })
+      });
+      const latencyMs = Math.round(performance.now() - start);
+      return { online: res.ok, latencyMs };
+    } catch (err: any) {
+      return { online: false, error: err.message };
+    }
   }
 }

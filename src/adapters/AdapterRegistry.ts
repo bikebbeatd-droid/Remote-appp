@@ -11,6 +11,7 @@ import { VizioSmartCastAdapter } from "./vizio/VizioSmartCastAdapter";
 import { AppleTvAdapter } from "./apple/AppleTvAdapter";
 import { HisenseVidaaAdapter } from "./hisense/HisenseVidaaAdapter";
 import { IrUniversalAdapter } from "./ir/IrUniversalAdapter";
+import { CompanionWebReceiverAdapter } from "./companion/CompanionAdapter";
 import { TvPlatform, TvDevice } from "../core/types";
 
 export class AdapterRegistry {
@@ -31,6 +32,7 @@ export class AdapterRegistry {
     const appleTv = new AppleTvAdapter();
     const hisense = new HisenseVidaaAdapter();
     const irUniversal = new IrUniversalAdapter();
+    const companion = new CompanionWebReceiverAdapter();
     const generic = new GenericAdapter();
 
     this.adapters.set("android_tv", androidTv);
@@ -46,6 +48,7 @@ export class AdapterRegistry {
     this.adapters.set("apple_tv", appleTv);
     this.adapters.set("hisense_vidaa", hisense);
     this.adapters.set("ir_universal", irUniversal);
+    this.adapters.set("companion_web_receiver", companion);
     this.adapters.set("generic", generic);
   }
 

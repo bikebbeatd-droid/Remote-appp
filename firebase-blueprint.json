@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User preferences and settings for the universal remote",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 2048 },
+        "preferredLayout": { "type": "string", "enum": ["mobile", "tv", "dual"] },
+        "preferredRemoteMode": { "type": "string", "maxLength": 64 },
+        "hapticsEnabled": { "type": "boolean" },
+        "theme": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "createdAt", "updatedAt"]
+    },
+    "ConnectionTest": {
+      "title": "ConnectionTest",
+      "description": "Public health check endpoint for validating Firestore backend reachability",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "TvDevice": {
+      "title": "TvDevice",
+      "description": "Synced Smart TV and streaming device profiles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "ip": { "type": "string", "maxLength": 64 },
+        "port": { "type": "number" },
+        "platform": { "type": "string", "maxLength": 64 },
+        "protocol": { "type": "string", "maxLength": 64 },
+        "isOnline": { "type": "boolean" },
+        "isPaired": { "type": "boolean" },
+        "requiresPairing": { "type": "boolean" },
+        "token": { "type": "string", "maxLength": 512 },
+        "manufacturer": { "type": "string", "maxLength": 128 },
+        "model": { "type": "string", "maxLength": 128 },
+        "room": { "type": "string", "maxLength": 64 },
+        "isFavorite": { "type": "boolean" },
+        "capabilities": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "name", "ip", "port", "platform", "protocol", "createdAt", "updatedAt"]
+    },
+    "CustomDeck": {
+      "title": "CustomDeck",
+      "description": "Custom user-built remote control deck and button mapping",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "deviceId": { "type": "string", "maxLength": 128 },
+        "buttons": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "name", "createdAt", "updatedAt"]
+    },
+    "CommunityRemote": {
+      "title": "CommunityRemote",
+      "description": "Shared public TV remote profiles and IR command templates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 128 },
+        "brand": { "type": "string", "maxLength": 128 },
+        "model": { "type": "string", "maxLength": 128 },
+        "platform": { "type": "string", "maxLength": 64 },
+        "description": { "type": "string", "maxLength": 500 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 128 },
+        "votesCount": { "type": "number" },
+        "layout": { "type": "object" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "title", "brand", "authorId", "authorName", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Private user profile and universal remote preferences"
+    },
+    "/users/{userId}/devices/{deviceId}": {
+      "schema": "TvDevice",
+      "description": "User's paired and saved TV devices"
+    },
+    "/users/{userId}/customDecks/{deckId}": {
+      "schema": "CustomDeck",
+      "description": "User's custom button decks and layouts"
+    },
+    "/communityRemotes/{remoteId}": {
+      "schema": "CommunityRemote",
+      "description": "Public community shared remote templates"
+    },
+    "/test/connection": {
+      "schema": "ConnectionTest",
+      "description": "Public health check endpoint to validate Firestore backend reachability"
+    }
+  }
+}

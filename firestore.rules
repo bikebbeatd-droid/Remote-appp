@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Public connection health check document (read-only)
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 && data.userId == request.auth.uid
+        && (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 256))
+        && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 128))
+        && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 2048))
+        && (!('preferredLayout' in data) || data.preferredLayout == null || (data.preferredLayout in ['mobile', 'tv', 'dual']))
+        && (!('preferredRemoteMode' in data) || data.preferredRemoteMode == null || (data.preferredRemoteMode is string && data.preferredRemoteMode.size() <= 64))
+        && (!('hapticsEnabled' in data) || data.hapticsEnabled == null || data.hapticsEnabled is bool)
+        && (!('theme' in data) || data.theme == null || (data.theme is string && data.theme.size() <= 32))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // Validation Blueprint: TvDevice
+    function isValidTvDevice(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 128
+        && data.ip is string && data.ip.size() <= 64
+        && data.port is number && data.port >= 1 && data.port <= 65535
+        && data.platform is string && data.platform.size() <= 64
+        && data.protocol is string && data.protocol.size() <= 64
+        && (!('isOnline' in data) || data.isOnline == null || data.isOnline is bool)
+        && (!('isPaired' in data) || data.isPaired == null || data.isPaired is bool)
+        && (!('requiresPairing' in data) || data.requiresPairing == null || data.requiresPairing is bool)
+        && (!('token' in data) || data.token == null || (data.token is string && data.token.size() <= 512))
+        && (!('manufacturer' in data) || data.manufacturer == null || (data.manufacturer is string && data.manufacturer.size() <= 128))
+        && (!('model' in data) || data.model == null || (data.model is string && data.model.size() <= 128))
+        && (!('room' in data) || data.room == null || (data.room is string && data.room.size() <= 64))
+        && (!('isFavorite' in data) || data.isFavorite == null || data.isFavorite is bool)
+        && (!('capabilities' in data) || data.capabilities == null || data.capabilities is map)
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // Validation Blueprint: CustomDeck
+    function isValidCustomDeck(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 128
+        && (!('deviceId' in data) || data.deviceId == null || (data.deviceId is string && data.deviceId.size() <= 128))
+        && (!('buttons' in data) || data.buttons == null || (data.buttons is list && data.buttons.size() <= 100))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // Validation Blueprint: CommunityRemote
+    function isValidCommunityRemote(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 128
+        && data.brand is string && data.brand.size() <= 128
+        && (!('model' in data) || data.model == null || (data.model is string && data.model.size() <= 128))
+        && (!('platform' in data) || data.platform == null || (data.platform is string && data.platform.size() <= 64))
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 500))
+        && data.authorId is string && data.authorId.size() <= 128
+        && data.authorName is string && data.authorName.size() <= 128
+        && (!('votesCount' in data) || data.votesCount == null || data.votesCount is number)
+        && (!('layout' in data) || data.layout == null || data.layout is map)
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // User Document & Subcollections
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Deny broad listing of user accounts
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(userId);
+
+      // User's Devices
+      match /devices/{deviceId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(deviceId) && isValidTvDevice(incoming());
+        allow update: if isOwner(userId) && isValidId(deviceId) && isValidTvDevice(incoming()) && incoming().id == existing().id && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(deviceId);
+      }
+
+      // User's Custom Remote Decks
+      match /customDecks/{deckId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(deckId) && isValidCustomDeck(incoming());
+        allow update: if isOwner(userId) && isValidId(deckId) && isValidCustomDeck(incoming()) && incoming().id == existing().id && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId) && isValidId(deckId);
+      }
+    }
+
+    // Public Community Remotes
+    match /communityRemotes/{remoteId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(remoteId) && isValidCommunityRemote(incoming()) && incoming().authorId == request.auth.uid;
+      allow update: if isSignedIn() && isValidId(remoteId) && isValidCommunityRemote(incoming())
+        && (
+          (existing().authorId == request.auth.uid && incoming().authorId == existing().authorId) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['votesCount'])
+        );
+      allow delete: if isSignedIn() && isValidId(remoteId) && existing().authorId == request.auth.uid;
+    }
+
+  }
+}

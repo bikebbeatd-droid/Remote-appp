@@ -47,6 +47,7 @@ export type TvPlatform =
   | "apple_tv"
   | "hisense_vidaa"
   | "ir_universal"
+  | "companion_web_receiver"
   | "generic";
 
 export interface TvDevice {
@@ -54,6 +55,7 @@ export interface TvDevice {
   name: string;
   model: string;
   brand?: string;
+  manufacturer?: string;
   series?: string;
   platform: TvPlatform;
   ip: string;

@@ -86,12 +86,15 @@ export class RokuAdapter implements TvAdapter {
     }
 
     try {
+      const mappedKey = this.mapRokuKey(command, value);
+
       const res = await fetch("/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deviceId: device.id,
           command,
+          mappedKey,
           value,
           protocol: "roku_ecp"
         })

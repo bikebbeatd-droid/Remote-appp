@@ -24,6 +24,9 @@ import { CompatibilityCenterModal } from "./components/CompatibilityCenterModal"
 import { IrBlasterModal } from "./ir/IrBlasterModal";
 import { MobileQrScannerModal } from "./mobile/components/MobileQrScannerModal";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
+import { CloudSyncModal } from "./components/modals/CloudSyncModal";
+import { auth, onAuthChanged, subscribeToUserDevices, syncDeviceToCloud } from "./core/firebase";
+import { User } from "firebase/auth";
 import { DeviceProfile } from "./database/types";
 import {
   Tv,
@@ -45,10 +48,21 @@ import {
   ShieldCheck,
   Camera,
   QrCode,
-  Wand2
+  Wand2,
+  Cloud,
+  CloudCheck
 } from "lucide-react";
 
 export type InterfaceViewMode = "mobile" | "tv" | "dual";
+
+function generateCryptographicPin(): string {
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    return String(100000 + (array[0] % 900000));
+  }
+  return "749215";
+}
 
 export default function App() {
   const [devices, setDevices] = useState<TvDevice[]>([]);
@@ -84,6 +98,8 @@ export default function App() {
   const [compatibilityCenterOpen, setCompatibilityCenterOpen] = useState(false);
   const [compatProfileId, setCompatProfileId] = useState<string | undefined>(undefined);
   const [irBlasterOpen, setIrBlasterOpen] = useState(false);
+  const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
 
   // Honest Alert / Notification Toast
   const [toast, setToast] = useState<{ type: "success" | "error" | "warning"; message: string } | null>(null);
@@ -96,6 +112,41 @@ export default function App() {
   });
 
   const socketRef = useRef<WebSocket | null>(null);
+
+  // Auth & Cloud Sync Listener
+  useEffect(() => {
+    const unsubAuth = onAuthChanged((user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsubAuth();
+  }, []);
+
+  // Real-time Firestore Cloud Device Sync
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const unsubFirestore = subscribeToUserDevices(
+      firebaseUser.uid,
+      (cloudDevices) => {
+        if (cloudDevices && cloudDevices.length > 0) {
+          setDevices((prevLocal) => {
+            // Merge cloud devices with local devices
+            const mergedMap = new Map<string, TvDevice>();
+            prevLocal.forEach((d) => mergedMap.set(d.id, d));
+            cloudDevices.forEach((d) => mergedMap.set(d.id, d));
+            const mergedList = Array.from(mergedMap.values());
+            TokenVault.saveDevices(mergedList);
+            return mergedList;
+          });
+        }
+      },
+      (err) => {
+        console.warn("Firestore subscription note:", err.message);
+      }
+    );
+
+    return () => unsubFirestore();
+  }, [firebaseUser]);
 
   // 1. Initialize Saved Devices, Load from TokenVault & Check QR Deep Links
   useEffect(() => {
@@ -236,6 +287,11 @@ export default function App() {
     });
     setCurrentDeviceId(newDev.id);
     TokenVault.setActiveDeviceId(newDev.id);
+    if (firebaseUser) {
+      syncDeviceToCloud(firebaseUser.uid, newDev).catch((e) =>
+        console.warn("Cloud sync error:", e)
+      );
+    }
     showToast(`Added ${newDev.name}`, "success");
   };
 
@@ -268,6 +324,11 @@ export default function App() {
       TokenVault.saveDevice(updated);
       return list;
     });
+    if (firebaseUser) {
+      syncDeviceToCloud(firebaseUser.uid, updated).catch((e) =>
+        console.warn("Cloud sync error:", e)
+      );
+    }
   };
 
   // Remove TV
@@ -292,6 +353,11 @@ export default function App() {
       return list;
     });
     setPairingPin(null);
+    if (firebaseUser) {
+      syncDeviceToCloud(firebaseUser.uid, pairedDevice).catch((e) =>
+        console.warn("Cloud sync error:", e)
+      );
+    }
     showToast(`Pairing verified with ${pairedDevice.name}! Remote authorized.`, "success");
   };
 
@@ -422,6 +488,31 @@ export default function App() {
 
         {/* Global Header Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Cloud Sync & Firebase Account Button */}
+          <button
+            id="header-cloud-sync-btn"
+            onClick={() => setCloudSyncOpen(true)}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              firebaseUser
+                ? "bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border border-indigo-500/50 shadow-sm"
+                : "bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+            }`}
+            title={firebaseUser ? `Signed in as ${firebaseUser.email || firebaseUser.displayName} - Cloud Sync Active` : "Sync TVs to Cloud Account"}
+          >
+            {firebaseUser ? (
+              <>
+                <CloudCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="hidden md:inline">Cloud Sync</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              </>
+            ) : (
+              <>
+                <Cloud className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="hidden md:inline">Cloud Sync</span>
+              </>
+            )}
+          </button>
+
           {/* Setup Wizard Button */}
           <button
             id="header-setup-wizard-btn"
@@ -573,7 +664,7 @@ export default function App() {
                   lastCommand={lastCommand}
                   pairingPin={pairingPin}
                   onGeneratePin={() => {
-                    const newPin = String(Math.floor(1000 + Math.random() * 9000));
+                    const newPin = generateCryptographicPin();
                     setPairingPin(newPin);
                     showToast(`New pairing PIN generated: ${newPin}`, "success");
                   }}
@@ -632,7 +723,7 @@ export default function App() {
                       lastCommand={lastCommand}
                       pairingPin={pairingPin}
                       onGeneratePin={() => {
-                        const newPin = String(Math.floor(1000 + Math.random() * 9000));
+                        const newPin = generateCryptographicPin();
                         setPairingPin(newPin);
                         showToast(`New pairing PIN generated: ${newPin}`, "success");
                       }}
@@ -782,6 +873,12 @@ export default function App() {
         isOpen={scenesOpen}
         onClose={() => setScenesOpen(false)}
         onExecuteCommand={handleSendCommand}
+      />
+
+      <CloudSyncModal
+        isOpen={cloudSyncOpen}
+        onClose={() => setCloudSyncOpen(false)}
+        localDevices={devices}
       />
 
       <ShareProfileModal
