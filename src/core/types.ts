@@ -7,7 +7,9 @@ export type CapabilityStatus =
   | "UNSUPPORTED"
   | "UNKNOWN"
   | "REQUIRES_PAIRING"
-  | "REQUIRES_HARDWARE";
+  | "REQUIRES_HARDWARE"
+  | "REQUIRES_NATIVE_BRIDGE"
+  | "DEVICE_DEPENDENT";
 
 export type ConnectionState =
   | "DISCONNECTED"

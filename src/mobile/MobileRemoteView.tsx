@@ -103,7 +103,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <TouchpadRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -112,7 +111,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <DpadRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -121,7 +119,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <MediaRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -130,7 +127,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <KeyboardRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -139,7 +135,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <NumpadRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -148,7 +143,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <AppLauncherRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -157,7 +151,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <GamingRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}
@@ -166,7 +159,6 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           <AccessibilityRemote
             device={device}
             onSendCommand={onSendCommand}
-            isSending={isSending}
             onUnsupportedAttempt={onUnsupportedAttempt}
           />
         )}

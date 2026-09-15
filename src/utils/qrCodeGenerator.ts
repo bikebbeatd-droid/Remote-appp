@@ -21,23 +21,27 @@ export function buildTvPairingPayload(
   device: TvDevice | null,
   pairingPin?: string | null
 ): { payload: TvPairingPayload; pairingUrl: string; rawJson: string } {
-  const ip = device?.ip || "192.168.1.104";
+  const resolvedIp = device?.ip && device.ip !== "127.0.0.1" && device.ip !== "localhost"
+    ? device.ip
+    : typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? window.location.hostname
+    : "";
   const port = device?.port || 6467;
   const protocol = device?.protocol || "android_tv_receiver";
-  const deviceId = device?.id || `tv_${ip.replace(/\./g, "_")}`;
+  const deviceId = device?.id || `tv_${resolvedIp ? resolvedIp.replace(/\./g, "_") : "target"}`;
   const name = device?.name || "Smart TV";
   const pin = pairingPin || "4821";
 
   // Build standard deep link / web link that auto-connects
-  const origin = typeof window !== "undefined" ? window.location.origin : "http://192.168.1.100:3000";
-  const pairingUrl = `${origin}/?pair=true&dev=${encodeURIComponent(deviceId)}&name=${encodeURIComponent(name)}&ip=${encodeURIComponent(ip)}&port=${port}&proto=${encodeURIComponent(protocol)}&pin=${encodeURIComponent(pin)}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const pairingUrl = `${origin}/?pair=true&dev=${encodeURIComponent(deviceId)}&name=${encodeURIComponent(name)}&ip=${encodeURIComponent(resolvedIp)}&port=${port}&proto=${encodeURIComponent(protocol)}&pin=${encodeURIComponent(pin)}`;
 
   const payload: TvPairingPayload = {
     type: "USTV_PAIR",
     version: 1,
     deviceId,
     name,
-    ip,
+    ip: resolvedIp,
     port,
     protocol,
     pin,

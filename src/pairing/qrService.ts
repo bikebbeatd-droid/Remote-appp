@@ -19,12 +19,18 @@ export class QrPairingService {
    * Generates a standard pairing payload string from TV details
    */
   static createPairingPayload(device: Partial<TvDevice> | null, pin: string): string {
+    const rawIp = device?.ip && device.ip !== "127.0.0.1" && device.ip !== "localhost"
+      ? device.ip
+      : typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+      ? window.location.hostname
+      : "";
+
     const payload: TvPairingPayload = {
       type: "USTV_PAIR",
       version: 1,
-      id: device?.id || "companion_tv_receiver",
-      name: device?.name || "Android TV Receiver",
-      ip: device?.ip || "192.168.1.104",
+      id: device?.id || `tv_${rawIp ? rawIp.replace(/\./g, "_") : "target"}`,
+      name: device?.name || "Smart TV Receiver",
+      ip: rawIp,
       port: device?.port || 6467,
       protocol: device?.protocol || "android_tv_receiver",
       pin: pin.trim(),
@@ -78,12 +84,19 @@ export class QrPairingService {
       try {
         const parsed = JSON.parse(text);
         if (parsed.ip && parsed.pin) {
+          const cleanIp = String(parsed.ip).trim();
+          if (cleanIp === "127.0.0.1" || cleanIp === "localhost") {
+            return {
+              success: false,
+              error: "127.0.0.1 is the Termux phone backend, not the TV. Please scan the QR code displayed on your TV screen."
+            };
+          }
           return {
             success: true,
             data: {
-              id: parsed.id || `tv_${parsed.ip.replace(/\./g, "_")}`,
-              name: parsed.name || `Smart TV (${parsed.ip})`,
-              ip: parsed.ip,
+              id: parsed.id || `tv_${cleanIp.replace(/\./g, "_")}`,
+              name: parsed.name || `Smart TV (${cleanIp})`,
+              ip: cleanIp,
               port: Number(parsed.port) || 6467,
               protocol: parsed.protocol || "android_tv_receiver",
               pin: String(parsed.pin).trim()
@@ -102,12 +115,19 @@ export class QrPairingService {
         const ip = params.get("ip");
         const pin = params.get("pin");
         if (ip && pin) {
+          const cleanIp = ip.trim();
+          if (cleanIp === "127.0.0.1" || cleanIp === "localhost") {
+            return {
+              success: false,
+              error: "127.0.0.1 is the Termux phone backend, not the TV. Please scan the QR code displayed on your TV screen."
+            };
+          }
           return {
             success: true,
             data: {
-              id: params.get("id") || params.get("dev") || `tv_${ip.replace(/\./g, "_")}`,
-              name: params.get("name") || `Smart TV (${ip})`,
-              ip,
+              id: params.get("id") || params.get("dev") || `tv_${cleanIp.replace(/\./g, "_")}`,
+              name: params.get("name") || `Smart TV (${cleanIp})`,
+              ip: cleanIp,
               port: Number(params.get("port")) || 6467,
               protocol: params.get("protocol") || params.get("proto") || "android_tv_receiver",
               pin: pin.trim()
@@ -117,19 +137,12 @@ export class QrPairingService {
       } catch {}
     }
 
-    // 3. Fallback: Check if it is a 4 to 6 digit standalone PIN
+    // 3. Reject standalone PIN without IP rather than fabricating a fake network address
     const pureDigits = text.replace(/\D/g, "");
     if (pureDigits.length >= 4 && pureDigits.length <= 6) {
       return {
-        success: true,
-        data: {
-          id: "companion_tv_receiver",
-          name: "Smart TV Receiver",
-          ip: "192.168.1.104",
-          port: 6467,
-          protocol: "android_tv_receiver",
-          pin: pureDigits
-        }
+        success: false,
+        error: `Scanned code "${pureDigits}" is a pairing PIN but does not contain a TV network address. Please scan the complete QR code displayed on your TV screen, or enter the TV IP address manually.`
       };
     }
 

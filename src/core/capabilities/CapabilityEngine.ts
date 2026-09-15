@@ -61,6 +61,20 @@ export class CapabilityEngine {
           reason: `Security handshake required for ${CAPABILITY_LABELS[capabilityKey]}.`
         };
 
+      case "REQUIRES_NATIVE_BRIDGE":
+        return {
+          allowed: false,
+          status: "REQUIRES_NATIVE_BRIDGE",
+          reason: `Native bridge required: ${CAPABILITY_LABELS[capabilityKey]} requires the Android Termux / native companion bridge on this phone.`
+        };
+
+      case "DEVICE_DEPENDENT":
+        return {
+          allowed: false,
+          status: "DEVICE_DEPENDENT",
+          reason: `${CAPABILITY_LABELS[capabilityKey]} is device-dependent and unverified on this TV model.`
+        };
+
       case "UNKNOWN":
       default:
         return {

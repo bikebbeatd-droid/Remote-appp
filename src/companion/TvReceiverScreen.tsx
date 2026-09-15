@@ -106,7 +106,9 @@ export const TvReceiverScreen: React.FC<TvReceiverScreenProps> = ({
         <div className="flex items-center gap-3 text-xs text-zinc-400">
           <div className="flex items-center gap-1">
             <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="font-mono text-[11px]">LAN: {device?.ip || "192.168.1.104"}</span>
+            <span className="font-mono text-[11px]">
+              LAN: {device?.ip && device.ip !== "127.0.0.1" ? device.ip : (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" ? window.location.hostname : "Active LAN")}
+            </span>
           </div>
         </div>
       </div>

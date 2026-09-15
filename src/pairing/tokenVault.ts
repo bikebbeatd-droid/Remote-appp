@@ -10,6 +10,36 @@ const STORAGE_PREFIX = "ustv_vault_";
 const DEVICES_KEY = "ustv_saved_devices";
 const ACTIVE_DEVICE_KEY = "ustv_active_device_id";
 
+const memStore = new Map<string, string>();
+
+function safeGetItem(key: string): string | null {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const val = localStorage.getItem(key);
+      if (val !== null) return val;
+    }
+  } catch {}
+  return memStore.get(key) || null;
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(key, value);
+    }
+  } catch {}
+  memStore.set(key, value);
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+  memStore.delete(key);
+}
+
 export class TokenVault {
   // Obfuscation key for local encryption
   private static deriveKey(): string {
@@ -24,7 +54,7 @@ export class TokenVault {
         savedAt: Date.now(),
         checksum: btoa(token + "_" + this.deriveKey())
       };
-      localStorage.setItem(`${STORAGE_PREFIX}${deviceId}`, JSON.stringify(payload));
+      safeSetItem(`${STORAGE_PREFIX}${deviceId}`, JSON.stringify(payload));
     } catch {
       // Handle storage quota
     }
@@ -32,7 +62,7 @@ export class TokenVault {
 
   static getToken(deviceId: string): string | null {
     try {
-      const raw = localStorage.getItem(`${STORAGE_PREFIX}${deviceId}`);
+      const raw = safeGetItem(`${STORAGE_PREFIX}${deviceId}`);
       if (!raw) return null;
       const data = JSON.parse(raw);
       // Validate checksum
@@ -49,7 +79,7 @@ export class TokenVault {
 
   static removeToken(deviceId: string): void {
     try {
-      localStorage.removeItem(`${STORAGE_PREFIX}${deviceId}`);
+      safeRemoveItem(`${STORAGE_PREFIX}${deviceId}`);
     } catch {}
   }
 
@@ -59,7 +89,7 @@ export class TokenVault {
 
   static getSavedDevices(): TvDevice[] {
     try {
-      const raw = localStorage.getItem(DEVICES_KEY);
+      const raw = safeGetItem(DEVICES_KEY);
       if (!raw) {
         return [];
       }
@@ -92,7 +122,7 @@ export class TokenVault {
 
   static saveDevices(devices: TvDevice[]): void {
     try {
-      localStorage.setItem(DEVICES_KEY, JSON.stringify(devices || []));
+      safeSetItem(DEVICES_KEY, JSON.stringify(devices || []));
     } catch {}
   }
 
@@ -115,7 +145,7 @@ export class TokenVault {
 
   static getActiveDeviceId(): string | null {
     try {
-      return localStorage.getItem(ACTIVE_DEVICE_KEY);
+      return safeGetItem(ACTIVE_DEVICE_KEY);
     } catch {
       return null;
     }
@@ -133,13 +163,13 @@ export class TokenVault {
 
   static setActiveDeviceId(id: string): void {
     try {
-      localStorage.setItem(ACTIVE_DEVICE_KEY, id);
+      safeSetItem(ACTIVE_DEVICE_KEY, id);
     } catch {}
   }
 
   static isOnboardingCompleted(): boolean {
     try {
-      return localStorage.getItem("ustv_onboarding_completed") === "true";
+      return safeGetItem("ustv_onboarding_completed") === "true";
     } catch {
       return false;
     }
@@ -147,13 +177,13 @@ export class TokenVault {
 
   static setOnboardingCompleted(completed: boolean): void {
     try {
-      localStorage.setItem("ustv_onboarding_completed", completed ? "true" : "false");
+      safeSetItem("ustv_onboarding_completed", completed ? "true" : "false");
     } catch {}
   }
 
   static resetOnboarding(): void {
     try {
-      localStorage.removeItem("ustv_onboarding_completed");
+      safeRemoveItem("ustv_onboarding_completed");
     } catch {}
   }
 }

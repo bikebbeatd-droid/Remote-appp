@@ -81,11 +81,12 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
       // 1. Try parsing JSON format
       if (rawData.trim().startsWith("{")) {
         const parsed = JSON.parse(rawData);
-        if (parsed.ip || parsed.deviceId) {
+        const rawIp = parsed.ip ? String(parsed.ip).trim() : "";
+        if (rawIp && rawIp !== "127.0.0.1" && rawIp !== "localhost") {
           return {
-            deviceId: parsed.deviceId || `tv_${(parsed.ip || "192.168.1.104").replace(/\./g, "_")}`,
-            name: parsed.name || "Smart TV",
-            ip: parsed.ip || "192.168.1.104",
+            deviceId: parsed.deviceId || `tv_${rawIp.replace(/\./g, "_")}`,
+            name: parsed.name || `Smart TV (${rawIp})`,
+            ip: rawIp,
             port: Number(parsed.port) || 6467,
             protocol: parsed.protocol || "android_tv_receiver",
             pin: parsed.pin ? String(parsed.pin) : undefined
@@ -106,29 +107,33 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
         const proto = url.searchParams.get("proto") || url.searchParams.get("protocol") || "android_tv_receiver";
         const pin = url.searchParams.get("pin");
 
-        if (ip || dev) {
-          const validIp = ip || "192.168.1.104";
-          return {
-            deviceId: dev || `tv_${validIp.replace(/\./g, "_")}`,
-            name: decodeURIComponent(name),
-            ip: validIp,
-            port,
-            protocol: decodeURIComponent(proto),
-            pin: pin ? decodeURIComponent(pin) : undefined
-          };
+        if (ip) {
+          const cleanIp = ip.trim();
+          if (cleanIp !== "127.0.0.1" && cleanIp !== "localhost") {
+            return {
+              deviceId: dev || `tv_${cleanIp.replace(/\./g, "_")}`,
+              name: decodeURIComponent(name),
+              ip: cleanIp,
+              port,
+              protocol: decodeURIComponent(proto),
+              pin: pin ? decodeURIComponent(pin) : undefined
+            };
+          }
         }
       }
 
-      // 3. Raw IP or PIN string
+      // 3. Raw IP string
       if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rawData.trim())) {
         const ip = rawData.trim();
-        return {
-          deviceId: `tv_${ip.replace(/\./g, "_")}`,
-          name: `Smart TV (${ip})`,
-          ip,
-          port: 6467,
-          protocol: "android_tv_receiver"
-        };
+        if (ip !== "127.0.0.1") {
+          return {
+            deviceId: `tv_${ip.replace(/\./g, "_")}`,
+            name: `Smart TV (${ip})`,
+            ip,
+            port: 6467,
+            protocol: "android_tv_receiver"
+          };
+        }
       }
     } catch (e) {
       console.error("Error parsing QR payload:", e);

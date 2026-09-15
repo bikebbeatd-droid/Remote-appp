@@ -17,9 +17,8 @@ export type QueueEventListener = (event: {
 }) => void;
 
 export class CommandQueue {
-  private queue: QueuedCommand[] = [];
-  private isProcessing = false;
-  private lastExecutedCommand: { command: RemoteCommandType; timestamp: number } | null = null;
+  private deviceQueues: Map<string, QueuedCommand[]> = new Map();
+  private lastExecutedByDevice: Map<string, { command: RemoteCommandType; timestamp: number }> = new Map();
   private listeners: Set<QueueEventListener> = new Set();
   private maxHistory = 100;
   private history: QueuedCommand[] = [];
@@ -48,9 +47,9 @@ export class CommandQueue {
 
   clearQueue(deviceId?: string) {
     if (deviceId) {
-      this.queue = this.queue.filter(c => c.deviceId !== deviceId);
+      this.deviceQueues.delete(deviceId);
     } else {
-      this.queue = [];
+      this.deviceQueues.clear();
     }
   }
 
@@ -58,7 +57,7 @@ export class CommandQueue {
     device: TvDevice,
     command: RemoteCommandType,
     value: any,
-    executor: () => Promise<CommandExecutionResult>
+    executor: (signal?: AbortSignal) => Promise<CommandExecutionResult>
   ): Promise<CommandExecutionResult> {
     const now = Date.now();
 
@@ -74,17 +73,23 @@ export class CommandQueue {
       return "cmd_" + Date.now().toString(36) + "_" + (performance.now() * 1000).toFixed(0);
     };
 
-    // Check debounce for non-rapid commands
+    // Check device-scoped debounce for non-rapid commands
+    const lastExecuted = this.lastExecutedByDevice.get(device.id);
+    const isRapidCommand =
+      command === "VOLUME_UP" ||
+      command === "VOLUME_DOWN" ||
+      command === "UP" ||
+      command === "DOWN" ||
+      command === "LEFT" ||
+      command === "RIGHT" ||
+      command === "CHANNEL_UP" ||
+      command === "CHANNEL_DOWN";
+
     if (
-      this.lastExecutedCommand &&
-      this.lastExecutedCommand.command === command &&
-      now - this.lastExecutedCommand.timestamp < this.DEBOUNCE_MS &&
-      command !== "VOLUME_UP" &&
-      command !== "VOLUME_DOWN" &&
-      command !== "UP" &&
-      command !== "DOWN" &&
-      command !== "LEFT" &&
-      command !== "RIGHT"
+      lastExecuted &&
+      lastExecuted.command === command &&
+      now - lastExecuted.timestamp < this.DEBOUNCE_MS &&
+      !isRapidCommand
     ) {
       const droppedItem: QueuedCommand = {
         id: generateId(),
@@ -114,27 +119,34 @@ export class CommandQueue {
       status: "queued"
     };
 
-    this.queue.push(commandItem);
+    const queueForDev = this.deviceQueues.get(device.id) || [];
+    queueForDev.push(commandItem);
+    this.deviceQueues.set(device.id, queueForDev);
     this.emit("ENQUEUED", commandItem);
 
-    // Run execution with timeout guard
+    // Run execution with abort controller and timeout guard
     commandItem.status = "executing";
     this.emit("STARTED", commandItem);
     const startTime = performance.now();
+    const abortController = new AbortController();
 
     try {
-      const timeoutPromise = new Promise<CommandExecutionResult>((_, reject) =>
-        setTimeout(() => reject(new Error(`Command timeout: TV failed to respond within ${this.TIMEOUT_MS}ms`)), this.TIMEOUT_MS)
-      );
+      const timeoutPromise = new Promise<CommandExecutionResult>((_, reject) => {
+        const timer = setTimeout(() => {
+          abortController.abort();
+          reject(new Error(`Command timeout: TV failed to respond within ${this.TIMEOUT_MS}ms`));
+        }, this.TIMEOUT_MS);
+        if (typeof timer.unref === "function") timer.unref();
+      });
 
-      const result = await Promise.race([executor(), timeoutPromise]);
+      const result = await Promise.race([executor(abortController.signal), timeoutPromise]);
       const latencyMs = Math.round(performance.now() - startTime);
 
       commandItem.latencyMs = latencyMs;
       commandItem.status = result.success ? "completed" : "failed";
       commandItem.error = result.error;
 
-      this.lastExecutedCommand = { command, timestamp: Date.now() };
+      this.lastExecutedByDevice.set(device.id, { command, timestamp: Date.now() });
 
       this.recordHistory(commandItem);
       this.emit(result.success ? "COMPLETED" : "FAILED", commandItem);
@@ -161,7 +173,15 @@ export class CommandQueue {
         error: err.message || "Command transmission failed"
       };
     } finally {
-      this.queue = this.queue.filter(c => c.id !== commandItem.id);
+      const currentQueue = this.deviceQueues.get(device.id);
+      if (currentQueue) {
+        const filtered = currentQueue.filter(c => c.id !== commandItem.id);
+        if (filtered.length > 0) {
+          this.deviceQueues.set(device.id, filtered);
+        } else {
+          this.deviceQueues.delete(device.id);
+        }
+      }
     }
   }
 

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TvDevice } from "../core/types";
 import { TvReceiverHeader } from "./components/TvReceiverHeader";
 import { TvPairingQrCard } from "./components/TvPairingQrCard";
 import { TvAppGrid, TV_APPS, TvAppItem } from "./components/TvAppGrid";
 import { TvVolumeHud } from "./components/TvVolumeHud";
+import { TvSpeechFeedback } from "./TvSpeechFeedback";
 import {
   Monitor,
   Power,
@@ -51,14 +52,50 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
   const [focusedActionIdx, setFocusedActionIdx] = useState(0);
   const [focusedAppIdx, setFocusedAppIdx] = useState(0);
 
+  // Announce 'TV Powering On' on receiver startup
+  useEffect(() => {
+    if (powerOn) {
+      const timer = setTimeout(() => {
+        TvSpeechFeedback.announceTvPowerOn();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Announce 'Connected to Mobile' when mobile pairs with this TV
+  const prevPairedRef = useRef<boolean>(Boolean(device?.isPaired));
+  useEffect(() => {
+    const isNowPaired = Boolean(device?.isPaired);
+    if (!prevPairedRef.current && isNowPaired) {
+      TvSpeechFeedback.announceConnectedToMobile(true);
+    }
+    prevPairedRef.current = isNowPaired;
+  }, [device?.isPaired]);
+
+  // Announce 'Connected to Mobile' when first command arrives from mobile controller
+  const hasAnnouncedMobileConnectionRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (lastCommand && !hasAnnouncedMobileConnectionRef.current) {
+      hasAnnouncedMobileConnectionRef.current = true;
+      TvSpeechFeedback.announceConnectedToMobile();
+    }
+  }, [lastCommand]);
+
   // Synchronize state when real commands arrive from mobile remote
   useEffect(() => {
     if (!lastCommand) return;
     const { command, value } = lastCommand;
 
     if (command === "POWER") {
-      setPowerOn(prev => !prev);
-      setRecentNotification(powerOn ? "Standby mode entered" : "Powering on display...");
+      const nextPower = !powerOn;
+      setPowerOn(nextPower);
+      if (nextPower) {
+        TvSpeechFeedback.announceTvPowerOn(true);
+        setRecentNotification("Powering on display...");
+      } else {
+        TvSpeechFeedback.speak("TV entering standby");
+        setRecentNotification("Standby mode entered");
+      }
     } else if (command === "VOLUME_UP") {
       setVolume(v => Math.min(100, v + 2));
       setIsMuted(false);
@@ -230,7 +267,11 @@ export const TvReceiverApp: React.FC<TvReceiverAppProps> = ({
               Press the POWER button on your connected phone remote to wake this TV.
             </p>
             <button
-              onClick={() => setPowerOn(true)}
+              onClick={() => {
+                setPowerOn(true);
+                TvSpeechFeedback.announceTvPowerOn(true);
+                setRecentNotification("Powering on display...");
+              }}
               className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 focus-visible:ring-indigo-400 hover:ring-2 hover:ring-indigo-400/50"
             >
               <Power className="w-4 h-4 text-emerald-400" />

@@ -3,10 +3,13 @@ import http from "http";
 import path from "path";
 import os from "os";
 import net from "net";
+import tls from "tls";
 import dgram from "dgram";
 import crypto from "crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
+import { validateTvTarget } from "./src/core/networkValidation";
+export { validateTvTarget };
 
 const app = express();
 const PORT = 3000;
@@ -113,59 +116,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 3000
   }
 }
 
-/**
- * Validate IP address and port against SSRF, broadcast, multicast, loopback and format violations
- */
-export function validateTvTarget(ip: string, port?: number): { valid: boolean; error?: string } {
-  const cleanIp = ip.trim();
 
-  // Validate IP format (strict IPv4)
-  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  if (!ipRegex.test(cleanIp)) {
-    return {
-      valid: false,
-      error: "INVALID_IP_FORMAT: Please provide a valid IPv4 address (e.g. 192.168.1.50)."
-    };
-  }
-
-  // Reject 127.0.0.0/8 & localhost as TV address (Termux local backend rule)
-  if (cleanIp.startsWith("127.") || cleanIp === "localhost") {
-    return {
-      valid: false,
-      error: "127.0.0.1 / localhost is the Termux local backend on your phone, NOT the Smart TV's IP address. Please enter your TV's actual Wi-Fi LAN IP (e.g. 192.168.1.x)."
-    };
-  }
-
-  // Reject 0.0.0.0/8
-  if (cleanIp.startsWith("0.")) {
-    return { valid: false, error: "INVALID_IP_TARGET: 0.0.0.0/8 is an unroutable address." };
-  }
-
-  // Reject broadcast
-  if (cleanIp === "255.255.255.255") {
-    return { valid: false, error: "INVALID_IP_TARGET: 255.255.255.255 is the broadcast address." };
-  }
-
-  // Reject multicast (224.0.0.0 - 239.255.255.255)
-  const firstOctet = parseInt(cleanIp.split(".")[0], 10);
-  if (firstOctet >= 224 && firstOctet <= 239) {
-    return { valid: false, error: "INVALID_IP_TARGET: Multicast addresses cannot be directly targeted for unicast TV control." };
-  }
-
-  // Reject link-local (169.254.0.0/16, including cloud metadata 169.254.169.254)
-  if (cleanIp.startsWith("169.254.")) {
-    return { valid: false, error: "SECURITY_VIOLATION: Link-local addresses (169.254.x.x) and cloud metadata services are prohibited." };
-  }
-
-  // Validate port if provided
-  if (port !== undefined) {
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      return { valid: false, error: "INVALID_PORT: Port must be an integer between 1 and 65535." };
-    }
-  }
-
-  return { valid: true };
-}
 
 /**
  * Probe a specific IP address for supported TV protocols
@@ -230,7 +181,9 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
           return { success: true, device };
         }
       }
-    } catch {}
+    } catch (err: any) {
+      console.debug(`[Probe] Roku query failed for ${cleanIp}:`, err?.message);
+    }
   }
 
   // 2. Test Samsung Tizen SmartView (Port 8001 / 8002)
@@ -250,7 +203,9 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
             if (data.device?.name) name = data.device.name;
             if (data.device?.modelName) model = data.device.modelName;
           }
-        } catch {}
+        } catch (err: any) {
+          console.debug(`[Probe] Samsung API query failed for ${cleanIp}:`, err?.message);
+        }
 
         const device: DiscoveredTvRecord = {
           id: `tizen_${cleanIp.replace(/\./g, "_")}`,
@@ -284,7 +239,9 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
         verifiedDevicesMap.set(device.id, device);
         return { success: true, device };
       }
-    } catch {}
+    } catch (err: any) {
+      // Samsung Tizen probe failed on this port, continue to next protocol
+    }
   }
 
   // 3. Test LG webOS SSAP (Port 3000 / 3001)
@@ -324,7 +281,9 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
         verifiedDevicesMap.set(device.id, device);
         return { success: true, device };
       }
-    } catch {}
+    } catch (err: any) {
+      // LG webOS probe failed, continue to next candidate
+    }
   }
 
   // 4. Test Sony BRAVIA IRCC / REST (Port 80 / 20060)
@@ -381,9 +340,13 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
             verifiedDevicesMap.set(device.id, device);
             return { success: true, device };
           }
-        } catch {}
+        } catch (sonyHttpErr: any) {
+          // Sony BRAVIA HTTP info probe failed, continue to other candidates
+        }
       }
-    } catch {}
+    } catch (sonyPortErr: any) {
+      // Sony port closed or timed out
+    }
   }
 
   // 5. Test Android TV / Google TV Remote Service v2 (Port 6466 / 6467 / 8008 / 5555)
@@ -423,7 +386,9 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
         verifiedDevicesMap.set(device.id, device);
         return { success: true, device };
       }
-    } catch {}
+    } catch (atvErr: any) {
+      // Android TV probe failed on tested ports
+    }
   }
 
   // If a specific custom port was requested, check reachability
@@ -559,10 +524,13 @@ function scanMdns(timeoutMs = 2500): Promise<DiscoveredTvRecord[]> {
             foundDevices.push(dev);
           }
         }
-      } catch {}
+      } catch (parseErr: any) {
+        console.debug("[mDNS] Error parsing response packet:", parseErr?.message);
+      }
     });
 
-    client.on("error", () => {
+    client.on("error", (err: any) => {
+      console.warn("[mDNS] Multicast socket error:", err?.message);
       try { client.close(); } catch {}
       resolve(foundDevices);
     });
@@ -574,9 +542,12 @@ function scanMdns(timeoutMs = 2500): Promise<DiscoveredTvRecord[]> {
           const castQuery = buildDnsQuery("_googlecast._tcp.local");
           client.send(atvQuery, 0, atvQuery.length, 5353, "224.0.0.251");
           client.send(castQuery, 0, castQuery.length, 5353, "224.0.0.251");
-        } catch {}
+        } catch (sendErr: any) {
+          console.debug("[mDNS] Failed to send query packets:", sendErr?.message);
+        }
       });
-    } catch {
+    } catch (bindErr: any) {
+      console.warn("[mDNS] Failed to bind client socket:", bindErr?.message);
       resolve(foundDevices);
     }
 
@@ -717,19 +688,27 @@ function scanSsdp(timeoutMs = 3000): Promise<DiscoveredTvRecord[]> {
             foundDevices.push(dev);
           }
         }
-      } catch {}
+      } catch (parseErr: any) {
+        console.debug("[SSDP] Error parsing datagram message:", parseErr?.message);
+      }
     });
 
-    client.on("error", () => {
+    client.on("error", (err: any) => {
+      console.warn("[SSDP] Socket error:", err?.message);
       try { client.close(); } catch {}
       resolve(foundDevices);
     });
 
     try {
       client.bind(0, () => {
-        client.send(ssdpMsg, 0, ssdpMsg.length, 1900, "239.255.255.250");
+        try {
+          client.send(ssdpMsg, 0, ssdpMsg.length, 1900, "239.255.255.250");
+        } catch (sendErr: any) {
+          console.debug("[SSDP] Failed to send broadcast datagram:", sendErr?.message);
+        }
       });
-    } catch {
+    } catch (bindErr: any) {
+      console.warn("[SSDP] Failed to bind UDP socket:", bindErr?.message);
       resolve(foundDevices);
     }
 
@@ -890,7 +869,9 @@ wss.on("connection", (ws: WebSocket, req) => {
           }
         }
       }
-    } catch {}
+    } catch (wsErr: any) {
+      console.warn("[WebSocket] Error processing companion receiver message:", wsErr?.message);
+    }
   });
 
   ws.on("close", () => {
@@ -929,7 +910,9 @@ app.get("/api/devices", async (_req, res) => {
       scanSsdp(1500),
       scanMdns(1500)
     ]);
-  } catch {}
+  } catch (scanErr: any) {
+    console.warn("[Discovery] Local subnet scan warning:", scanErr?.message);
+  }
 
   const devices = Array.from(verifiedDevicesMap.values());
   res.json({ devices, timestamp: Date.now() });
@@ -1062,6 +1045,295 @@ app.post("/api/devices/pair", async (req, res) => {
   });
 });
 
+/**
+ * Real Samsung Tizen WebSocket remote control sender
+ */
+async function sendSamsungTizenWsCommand(
+  ip: string,
+  port: number,
+  keyToSend: string,
+  token?: string
+): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  const startTime = Date.now();
+  return new Promise((resolve) => {
+    const encodedAppName = Buffer.from("UniversalRemote").toString("base64");
+    const portNum = port || 8002;
+    const wsUrl = `ws://${ip}:${portNum}/api/v2/channels/samsung.remote.control?name=${encodedAppName}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
+
+    let isSettled = false;
+    let ws: WebSocket | null = null;
+
+    const timer = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        try { ws?.terminate(); } catch {}
+        resolve({
+          success: false,
+          latencyMs: Date.now() - startTime,
+          error: `Samsung Tizen TV at ${ip}:${portNum} timed out. Ensure IP Remote Control is enabled in TV Network settings.`
+        });
+      }
+    }, 3000);
+
+    try {
+      ws = new WebSocket(wsUrl, { handshakeTimeout: 2500 });
+
+      ws.on("open", () => {
+        const payload = {
+          method: "ms.remote.control",
+          params: {
+            Cmd: "Click",
+            DataOfCmd: keyToSend,
+            Option: "false",
+            TypeOfRemote: "SendRemoteKey"
+          }
+        };
+
+        ws.send(JSON.stringify(payload), (err) => {
+          clearTimeout(timer);
+          if (!isSettled) {
+            isSettled = true;
+            setTimeout(() => {
+              try { ws?.close(); } catch {}
+            }, 100);
+            if (err) {
+              resolve({
+                success: false,
+                latencyMs: Date.now() - startTime,
+                error: `Failed to transmit key to Samsung TV: ${err.message}`
+              });
+            } else {
+              resolve({
+                success: true,
+                latencyMs: Date.now() - startTime
+              });
+            }
+          }
+        });
+      });
+
+      ws.on("error", (err) => {
+        clearTimeout(timer);
+        if (!isSettled) {
+          isSettled = true;
+          try { ws?.terminate(); } catch {}
+          resolve({
+            success: false,
+            latencyMs: Date.now() - startTime,
+            error: `Samsung Tizen WebSocket error: ${err.message}. If TV asks for permission, accept prompt on TV.`
+          });
+        }
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      resolve({
+        success: false,
+        latencyMs: Date.now() - startTime,
+        error: `Could not initiate WebSocket to Samsung TV: ${err.message}`
+      });
+    }
+  });
+}
+
+/**
+ * Real LG webOS SSAP WebSocket command sender
+ */
+async function sendLgWebOsWsCommand(
+  ip: string,
+  port: number,
+  uri: string,
+  payload: any,
+  token?: string
+): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  const startTime = Date.now();
+  return new Promise((resolve) => {
+    const portNum = port || 3000;
+    const wsUrl = `ws://${ip}:${portNum}`;
+
+    let isSettled = false;
+    let ws: WebSocket | null = null;
+
+    const timer = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        try { ws?.terminate(); } catch {}
+        resolve({
+          success: false,
+          latencyMs: Date.now() - startTime,
+          error: `LG webOS TV at ${ip}:${portNum} timed out. Ensure LG Connect Apps / Mobile TV On is turned ON in TV Network settings.`
+        });
+      }
+    }, 3000);
+
+    try {
+      ws = new WebSocket(wsUrl, { handshakeTimeout: 2500 });
+
+      ws.on("open", () => {
+        const registerReq = {
+          type: "register",
+          id: "reg_0",
+          payload: {
+            forcePairing: false,
+            pairingType: "PROMPT",
+            "client-key": token || undefined,
+            manifest: {
+              manifestVersion: 1,
+              permissions: [
+                "CONTROL_AUDIO",
+                "CONTROL_POWER",
+                "READ_INSTALLED_APPS",
+                "CONTROL_DISPLAY"
+              ]
+            }
+          }
+        };
+        ws.send(JSON.stringify(registerReq));
+
+        const cmdReq = {
+          type: "request",
+          id: "req_" + Date.now().toString(36),
+          uri,
+          payload: payload || {}
+        };
+
+        ws.send(JSON.stringify(cmdReq), (err) => {
+          clearTimeout(timer);
+          if (!isSettled) {
+            isSettled = true;
+            setTimeout(() => {
+              try { ws?.close(); } catch {}
+            }, 100);
+            if (err) {
+              resolve({
+                success: false,
+                latencyMs: Date.now() - startTime,
+                error: `Failed to dispatch command to LG webOS: ${err.message}`
+              });
+            } else {
+              resolve({
+                success: true,
+                latencyMs: Date.now() - startTime
+              });
+            }
+          }
+        });
+      });
+
+      ws.on("error", (err) => {
+        clearTimeout(timer);
+        if (!isSettled) {
+          isSettled = true;
+          try { ws?.terminate(); } catch {}
+          resolve({
+            success: false,
+            latencyMs: Date.now() - startTime,
+            error: `LG webOS WebSocket error: ${err.message}. Ensure TV is powered on and on this network.`
+          });
+        }
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      resolve({
+        success: false,
+        latencyMs: Date.now() - startTime,
+        error: `Could not initiate WebSocket to LG webOS TV: ${err.message}`
+      });
+    }
+  });
+}
+
+/**
+ * Real Android TV Remote Service v2 TLS sender
+ */
+async function sendAndroidTvCommand(
+  ip: string,
+  port: number,
+  command: string,
+  keycode?: number,
+  token?: string
+): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  const startTime = Date.now();
+  const portNum = port || 6467;
+
+  return new Promise((resolve) => {
+    let isSettled = false;
+
+    const timer = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        resolve({
+          success: false,
+          latencyMs: Date.now() - startTime,
+          error: `Android TV Remote Service at ${ip}:${portNum} timed out. Ensure Google TV / Android TV Remote Service is active.`
+        });
+      }
+    }, 3000);
+
+    try {
+      const socket = tls.connect({
+        host: ip,
+        port: portNum,
+        rejectUnauthorized: false,
+        timeout: 2500
+      }, () => {
+        clearTimeout(timer);
+        if (!isSettled) {
+          isSettled = true;
+          if (!token) {
+            try { socket.destroy(); } catch {}
+            resolve({
+              success: false,
+              latencyMs: Date.now() - startTime,
+              error: `Android TV Remote Service v2 requires pairing. Please enter the pairing code displayed on your TV.`
+            });
+            return;
+          }
+
+          const keyNumber = keycode || 23;
+          const packet = Buffer.from([0x08, keyNumber, 0x10, 0x01]);
+          socket.write(packet, (err) => {
+            setTimeout(() => {
+              try { socket.destroy(); } catch {}
+            }, 100);
+            if (err) {
+              resolve({
+                success: false,
+                latencyMs: Date.now() - startTime,
+                error: `Failed to transmit keycode to Android TV: ${err.message}`
+              });
+            } else {
+              resolve({
+                success: true,
+                latencyMs: Date.now() - startTime
+              });
+            }
+          });
+        }
+      });
+
+      socket.on("error", (err) => {
+        clearTimeout(timer);
+        if (!isSettled) {
+          isSettled = true;
+          try { socket.destroy(); } catch {}
+          resolve({
+            success: false,
+            latencyMs: Date.now() - startTime,
+            error: `Android TV TLS connection failed: ${err.message}. Ensure TV is powered on.`
+          });
+        }
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      resolve({
+        success: false,
+        latencyMs: Date.now() - startTime,
+        error: `Could not connect to Android TV: ${err.message}`
+      });
+    }
+  });
+}
+
 // 5. Send Real Command to Device
 app.post("/api/command", async (req, res) => {
   const {
@@ -1136,6 +1408,22 @@ app.post("/api/command", async (req, res) => {
       latencyMs: Date.now() - startTime
     });
   }
+
+  // Security: Validate target IP and port against SSRF / loopback violations
+  const targetValidation = validateTvTarget(device.ip, device.port);
+  if (!targetValidation.valid) {
+    return res.status(400).json({
+      requestId,
+      deviceId,
+      command,
+      success: false,
+      errorCode: "SECURITY_VIOLATION",
+      error: targetValidation.error,
+      latencyMs: Date.now() - startTime
+    });
+  }
+
+  const effectiveToken = token || activeTokensMap.get(deviceId) || "";
 
   // 3. Reject Consumer IR over Network API
   if (device.platform === "ir_universal" || protocol === "ir_universal") {
@@ -1292,19 +1580,6 @@ app.post("/api/command", async (req, res) => {
   // 6. Execute Android TV / Google TV Remote Service Command
   if (device.platform === "android_tv" || protocol === "android_tv_receiver") {
     try {
-      const isAlive = (await checkTcpPort(device.ip, device.port || 6467, 2000)) || (await checkTcpPort(device.ip, 6466, 2000)) || (await checkTcpPort(device.ip, 8008, 2000));
-      if (!isAlive) {
-        return res.status(504).json({
-          requestId,
-          deviceId,
-          command,
-          success: false,
-          errorCode: "DEVICE_OFFLINE",
-          error: `Android TV at ${device.ip}:${device.port || 6467} is not reachable on the local Wi-Fi network.`,
-          latencyMs: Date.now() - startTime
-        });
-      }
-
       // Android TV Keycode Mapping
       const atvKeycodeMap: Record<string, number> = {
         POWER: 26,
@@ -1339,7 +1614,50 @@ app.post("/api/command", async (req, res) => {
         CAPTIONS: 175
       };
 
-      const resolvedKeycode = atvKeycodeMap[command] || (typeof keycode === "number" ? keycode : undefined);
+      const resolvedKeycode = atvKeycodeMap[command] || (typeof keycode === "number" ? keycode : 23);
+
+      // Check if Companion Web Receiver is connected on this device ID
+      const companion = companionReceiversMap.get(deviceId);
+      if (companion && companion.ws.readyState === WebSocket.OPEN) {
+        companion.ws.send(JSON.stringify({
+          type: "COMMAND_EXECUTED",
+          command,
+          value,
+          keycode: resolvedKeycode,
+          timestamp: Date.now()
+        }));
+        return res.json({
+          requestId,
+          deviceId,
+          command,
+          value,
+          keycode: resolvedKeycode,
+          success: true,
+          protocol: "companion_ws",
+          latencyMs: Date.now() - startTime
+        });
+      }
+
+      // Otherwise send real TLS command to native Android TV on port 6467 / 6466
+      const result = await sendAndroidTvCommand(
+        device.ip,
+        device.port || 6467,
+        command,
+        resolvedKeycode,
+        effectiveToken
+      );
+
+      if (!result.success) {
+        return res.status(504).json({
+          requestId,
+          deviceId,
+          command,
+          success: false,
+          errorCode: "ATV_COMMUNICATION_ERROR",
+          error: result.error || `Could not send command to Android TV at ${device.ip}`,
+          latencyMs: result.latencyMs
+        });
+      }
 
       return res.json({
         requestId,
@@ -1350,7 +1668,7 @@ app.post("/api/command", async (req, res) => {
         success: true,
         protocol: "android_tv_receiver",
         target: `${device.ip}:${device.port || 6467}`,
-        latencyMs: Date.now() - startTime
+        latencyMs: result.latencyMs
       });
     } catch (err: any) {
       return res.status(504).json({
@@ -1368,19 +1686,6 @@ app.post("/api/command", async (req, res) => {
   // 7. Execute Samsung Tizen SmartView Command
   if (device.platform === "tizen" || protocol === "samsung_tizen_ws") {
     try {
-      const isAlive = (await checkTcpPort(device.ip, device.port || 8002, 2000)) || (await checkTcpPort(device.ip, 8001, 2000));
-      if (!isAlive) {
-        return res.status(504).json({
-          requestId,
-          deviceId,
-          command,
-          success: false,
-          errorCode: "DEVICE_UNREACHABLE",
-          error: `Samsung Tizen TV at ${device.ip}:${device.port || 8002} is offline or unreachable. Ensure TV is powered on.`,
-          latencyMs: Date.now() - startTime
-        });
-      }
-
       const samsungKeyMap: Record<string, string> = {
         POWER: "KEY_POWER",
         HOME: "KEY_HOME",
@@ -1407,6 +1712,25 @@ app.post("/api/command", async (req, res) => {
 
       const keyToSend = mappedKey || samsungKeyMap[command] || "KEY_HOME";
 
+      const result = await sendSamsungTizenWsCommand(
+        device.ip,
+        device.port || 8002,
+        keyToSend,
+        effectiveToken
+      );
+
+      if (!result.success) {
+        return res.status(504).json({
+          requestId,
+          deviceId,
+          command,
+          success: false,
+          errorCode: "TIZEN_ERROR",
+          error: result.error || `Samsung Tizen command failed on ${device.ip}`,
+          latencyMs: result.latencyMs
+        });
+      }
+
       return res.json({
         requestId,
         deviceId,
@@ -1415,7 +1739,7 @@ app.post("/api/command", async (req, res) => {
         keySent: keyToSend,
         success: true,
         protocol: "samsung_tizen_ws",
-        latencyMs: Date.now() - startTime
+        latencyMs: result.latencyMs
       });
     } catch (err: any) {
       return res.status(504).json({
@@ -1433,16 +1757,74 @@ app.post("/api/command", async (req, res) => {
   // 8. Execute LG webOS SSAP Command
   if (device.platform === "webos" || protocol === "lg_webos_ssap") {
     try {
-      const isAlive = (await checkTcpPort(device.ip, device.port || 3001, 2000)) || (await checkTcpPort(device.ip, 3000, 2000));
-      if (!isAlive) {
+      let ssapUri = "ssap://media.controls/play";
+      let ssapPayload: any = {};
+
+      switch (command) {
+        case "POWER":
+          ssapUri = "ssap://system/turnOff";
+          break;
+        case "VOLUME_UP":
+          ssapUri = "ssap://audio/volumeUp";
+          break;
+        case "VOLUME_DOWN":
+          ssapUri = "ssap://audio/volumeDown";
+          break;
+        case "MUTE":
+          ssapUri = "ssap://audio/setMute";
+          ssapPayload = { mute: true };
+          break;
+        case "PLAY":
+          ssapUri = "ssap://media.controls/play";
+          break;
+        case "PAUSE":
+          ssapUri = "ssap://media.controls/pause";
+          break;
+        case "STOP":
+          ssapUri = "ssap://media.controls/stop";
+          break;
+        case "REWIND":
+          ssapUri = "ssap://media.controls/rewind";
+          break;
+        case "FAST_FORWARD":
+          ssapUri = "ssap://media.controls/fastForward";
+          break;
+        case "CHANNEL_UP":
+          ssapUri = "ssap://tv/channelUp";
+          break;
+        case "CHANNEL_DOWN":
+          ssapUri = "ssap://tv/channelDown";
+          break;
+        case "HOME":
+          ssapUri = "ssap://com.webos.applicationManager/getForegroundAppInfo";
+          break;
+        case "LAUNCH_APP":
+          ssapUri = "ssap://system.launcher/launch";
+          ssapPayload = { id: value || "netflix" };
+          break;
+        default:
+          ssapUri = "ssap://system/showFloat";
+          ssapPayload = { message: `Remote command: ${command}` };
+          break;
+      }
+
+      const result = await sendLgWebOsWsCommand(
+        device.ip,
+        device.port || 3000,
+        ssapUri,
+        ssapPayload,
+        effectiveToken
+      );
+
+      if (!result.success) {
         return res.status(504).json({
           requestId,
           deviceId,
           command,
           success: false,
-          errorCode: "DEVICE_UNREACHABLE",
-          error: `LG webOS TV at ${device.ip}:${device.port || 3000} is offline or unreachable.`,
-          latencyMs: Date.now() - startTime
+          errorCode: "WEBOS_ERROR",
+          error: result.error || `LG webOS command failed on ${device.ip}`,
+          latencyMs: result.latencyMs
         });
       }
 
@@ -1453,7 +1835,7 @@ app.post("/api/command", async (req, res) => {
         value,
         success: true,
         protocol: "lg_webos_ssap",
-        latencyMs: Date.now() - startTime
+        latencyMs: result.latencyMs
       });
     } catch (err: any) {
       return res.status(504).json({
@@ -1483,12 +1865,15 @@ app.post("/api/command", async (req, res) => {
       });
     }
 
-    return res.json({
+    // Protocol driver is required to dispatch the command to the TV
+    return res.status(400).json({
       requestId,
       deviceId,
       command,
       value,
-      success: true,
+      success: false,
+      errorCode: "UNSUPPORTED_PROTOCOL_DRIVER",
+      error: `Protocol '${device.protocol}' has no verified network driver registered for command dispatch. Please select a supported TV platform or use the TV Companion receiver.`,
       protocol: device.protocol,
       latencyMs: Date.now() - startTime
     });

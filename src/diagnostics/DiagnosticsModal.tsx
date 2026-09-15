@@ -95,7 +95,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
               <span className="text-[10px] text-zinc-500 uppercase font-semibold">IP Address</span>
               <p className="text-xs font-mono font-medium text-zinc-300 mt-0.5">
-                {device?.ip || "192.168.1.105"}
+                {device?.ip ? (device.ip === "127.0.0.1" ? "127.0.0.1 (Termux)" : device.ip) : "None (IR Optical)"}
               </p>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl">

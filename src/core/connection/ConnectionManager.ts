@@ -15,6 +15,7 @@ export class ConnectionManager {
   private consecutiveFailures = 0;
   private listeners: Set<ConnectionStateListener> = new Set();
   private isChecking = false;
+  private sessionVersion = 0;
 
   private constructor() {}
 
@@ -51,6 +52,7 @@ export class ConnectionManager {
 
   setActiveDevice(device: TvDevice | null) {
     this.stopHeartbeat();
+    this.sessionVersion++;
     this.activeDevice = device;
     this.consecutiveFailures = 0;
 
@@ -68,26 +70,41 @@ export class ConnectionManager {
   }
 
   async connect(device: TvDevice): Promise<boolean> {
+    const session = ++this.sessionVersion;
     this.activeDevice = device;
     this.setState("CONNECTING");
 
-    const adapter = AdapterRegistry.getAdapterForDevice(device);
-    const pingResult = await adapter.ping(device);
+    try {
+      const adapter = AdapterRegistry.getAdapterForDevice(device);
+      const pingResult = await adapter.ping(device);
 
-    if (pingResult.online) {
-      this.consecutiveFailures = 0;
-      this.setState("CONNECTED", { latencyMs: pingResult.latencyMs });
-      this.startHeartbeat();
-      return true;
-    } else {
-      this.setState("DISCONNECTED", { error: pingResult.error || "TV unreachable" });
+      // Check if session changed while waiting for ping
+      if (this.sessionVersion !== session || this.activeDevice?.id !== device.id) {
+        return false;
+      }
+
+      if (pingResult.online) {
+        this.consecutiveFailures = 0;
+        this.setState("CONNECTED", { latencyMs: pingResult.latencyMs });
+        this.startHeartbeat();
+        return true;
+      } else {
+        this.setState("DISCONNECTED", { error: pingResult.error || "TV unreachable" });
+        return false;
+      }
+    } catch (err: any) {
+      if (this.sessionVersion === session && this.activeDevice?.id === device.id) {
+        this.setState("DISCONNECTED", { error: err.message || "Connection failed" });
+      }
       return false;
     }
   }
 
   disconnect() {
+    this.sessionVersion++;
     this.stopHeartbeat();
     this.consecutiveFailures = 0;
+    this.activeDevice = null;
     this.setState("DISCONNECTED");
   }
 
@@ -107,11 +124,18 @@ export class ConnectionManager {
 
   async runHeartbeatCheck() {
     if (!this.activeDevice || this.isChecking) return;
+    const session = this.sessionVersion;
+    const currentDev = this.activeDevice;
     this.isChecking = true;
 
     try {
-      const adapter = AdapterRegistry.getAdapterForDevice(this.activeDevice);
-      const pingResult = await adapter.ping(this.activeDevice);
+      const adapter = AdapterRegistry.getAdapterForDevice(currentDev);
+      const pingResult = await adapter.ping(currentDev);
+
+      // Guard against device switch during heartbeat check
+      if (this.sessionVersion !== session || this.activeDevice?.id !== currentDev.id) {
+        return;
+      }
 
       if (pingResult.online) {
         this.consecutiveFailures = 0;
@@ -129,9 +153,11 @@ export class ConnectionManager {
         }
       }
     } catch {
-      this.consecutiveFailures++;
-      if (this.consecutiveFailures >= 2) {
-        this.setState("RECONNECTING");
+      if (this.sessionVersion === session && this.activeDevice?.id === currentDev.id) {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= 2) {
+          this.setState("RECONNECTING");
+        }
       }
     } finally {
       this.isChecking = false;

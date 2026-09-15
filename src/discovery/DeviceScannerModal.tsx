@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TvDevice } from "../core/types";
+import { DeviceProfile } from "../database/types";
 import { DiscoveryService } from "./discoveryService";
 import { CAPABILITY_LABELS, getCapabilityBadgeColor } from "../core/capabilities";
 import {
@@ -18,7 +19,8 @@ import {
   Sliders,
   ChevronRight,
   Info,
-  Camera
+  Camera,
+  Layers
 } from "lucide-react";
 
 interface DeviceScannerModalProps {
@@ -31,6 +33,8 @@ interface DeviceScannerModalProps {
   onRefreshDevices?: () => Promise<void>;
   onDevicePaired?: (device: TvDevice) => void;
   onOpenQrScanner?: () => void;
+  initialProfile?: DeviceProfile | null;
+  onClearInitialProfile?: () => void;
 }
 
 export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
@@ -42,7 +46,9 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   onPairDevice,
   onRefreshDevices,
   onDevicePaired,
-  onOpenQrScanner
+  onOpenQrScanner,
+  initialProfile = null,
+  onClearInitialProfile
 }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [manualIp, setManualIp] = useState("");
@@ -50,6 +56,21 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   const [manualProtocol, setManualProtocol] = useState("roku_ecp");
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [probeResult, setProbeResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialProfile && isOpen) {
+      setShowManualAdd(true);
+      if (initialProfile.defaultPort) {
+        setManualPort(String(initialProfile.defaultPort));
+      } else {
+        setManualPort("");
+      }
+      if (initialProfile.protocol) {
+        setManualProtocol(initialProfile.protocol);
+      }
+      setProbeResult(null);
+    }
+  }, [initialProfile, isOpen]);
 
   if (!isOpen) return null;
 
@@ -81,15 +102,49 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       const portNum = manualPort ? parseInt(manualPort, 10) : undefined;
       const res = await DiscoveryService.probeIp(trimmedIp, portNum, manualProtocol);
       if (res.success && res.device) {
-        setProbeResult(`Found device: ${res.device.name} (${res.device.protocol})`);
-        onSelectDevice?.(res.device);
-        onDevicePaired?.(res.device);
+        const enrichedDevice: TvDevice = {
+          ...res.device,
+          brand: initialProfile?.brand || res.device.brand || "Smart TV",
+          series: initialProfile?.series || res.device.series,
+          model: initialProfile?.model || res.device.model,
+          platform: (initialProfile?.platform || res.device.platform) as any,
+          capabilities: initialProfile?.defaultCapabilities || res.device.capabilities,
+          requiresPairing: initialProfile ? initialProfile.pairingMethod !== "NONE" : res.device.requiresPairing,
+          isPaired: initialProfile ? initialProfile.pairingMethod === "NONE" : res.device.isPaired
+        };
+        setProbeResult(`Found device: ${enrichedDevice.name} (${enrichedDevice.protocol})`);
+        onSelectDevice?.(enrichedDevice);
+        onDevicePaired?.(enrichedDevice);
       } else {
         setProbeResult(`Probe failed: ${res.error || "No responsive TV at this address"}`);
       }
     } finally {
       setIsScanning(false);
     }
+  };
+
+  // Add IR Device directly if IR profile is chosen (requires native IR hardware/bridge)
+  const handleAddIrDevice = () => {
+    if (!initialProfile) return;
+    const irDev: TvDevice = {
+      id: `ir_${initialProfile.id}_${Date.now().toString(36)}`,
+      name: `${initialProfile.brand} ${initialProfile.series || initialProfile.model} (IR)`,
+      brand: initialProfile.brand,
+      series: initialProfile.series,
+      model: initialProfile.model,
+      platform: "ir_universal",
+      protocol: "ir_universal",
+      ip: "",
+      port: 0,
+      requiresPairing: false,
+      isPaired: true,
+      isOnline: true,
+      capabilities: initialProfile.defaultCapabilities,
+      lastSeen: Date.now()
+    };
+    onSelectDevice?.(irDev);
+    onDevicePaired?.(irDev);
+    onClose();
   };
 
   const safeDeviceList = Array.isArray(devices) ? devices : [];
@@ -131,6 +186,47 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
 
         {/* Device List */}
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {/* Active Profile Configuration Banner */}
+          {initialProfile && (
+            <div className="p-4 bg-indigo-950/50 border border-indigo-500/50 rounded-xl flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs">
+                  <Layers className="w-4 h-4" />
+                  <span>Configuring Profile: {initialProfile.brand} {initialProfile.series || initialProfile.model}</span>
+                </div>
+                {onClearInitialProfile && (
+                  <button
+                    onClick={onClearInitialProfile}
+                    className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded bg-zinc-800"
+                  >
+                    Clear Profile
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-zinc-300">
+                Protocol: <span className="font-mono text-indigo-300">{initialProfile.protocol}</span>
+                {initialProfile.defaultPort ? <span> | Port: <span className="font-mono text-indigo-300">{initialProfile.defaultPort}</span></span> : null}
+              </p>
+              {initialProfile.platform === "ir_universal" ? (
+                <div className="pt-2 border-t border-indigo-500/30 flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-amber-300">
+                    IR remotes operate optically via built-in phone IR blaster hardware or local IR bridge (no Wi-Fi IP needed).
+                  </span>
+                  <button
+                    id="add-ir-device-btn"
+                    onClick={handleAddIrDevice}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shrink-0 transition-colors"
+                  >
+                    Add as IR Blaster Remote
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-zinc-400">
+                  Enter your TV's Wi-Fi LAN IP below to verify connection and save this profile.
+                </p>
+              )}
+            </div>
+          )}
           {/* Termux Architecture Note */}
           <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 flex items-start gap-2.5">
             <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
@@ -214,7 +310,14 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
                   <option value="samsung_tizen_ws">Samsung Tizen (8002)</option>
                   <option value="lg_webos_ssap">LG webOS (3001)</option>
                   <option value="sony_ircc_rest">Sony BRAVIA (80)</option>
-                  <option value="android_tv_receiver">Android TV Receiver (3000)</option>
+                  <option value="android_tv_receiver">Android TV / Google TV (6467 / 6466)</option>
+                  <option value="fire_tv">Amazon Fire TV (8008 / 5555)</option>
+                  <option value="panasonic_viera">Panasonic VIERA (55000)</option>
+                  <option value="philips_jointspace">Philips JointSpace (1925 / 1926)</option>
+                  <option value="vizio_smartcast">Vizio SmartCast (7345 / 9000)</option>
+                  <option value="apple_tv">Apple TV (7000)</option>
+                  <option value="hisense_vidaa">Hisense VIDAA (3000)</option>
+                  <option value="ir_universal">Consumer Infrared (IR 38kHz)</option>
                 </select>
               </div>
 
@@ -390,7 +493,7 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between text-xs text-zinc-500">
-          <span>Local network: 192.168.1.0/24 subnet auto-probed</span>
+          <span>Local network multi-protocol scan (SSDP / mDNS / HTTP)</span>
           <span>Offline local-first protocol execution</span>
         </div>
       </div>

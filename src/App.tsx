@@ -28,6 +28,9 @@ import { CloudSyncModal } from "./components/modals/CloudSyncModal";
 import { auth, onAuthChanged, subscribeToUserDevices, syncDeviceToCloud } from "./core/firebase";
 import { User } from "firebase/auth";
 import { DeviceProfile } from "./database/types";
+import { validateTvTarget } from "./core/networkValidation";
+import { AppLogo } from "./components/common/AppLogo";
+import { LoadingScreen } from "./components/common/LoadingScreen";
 import {
   Tv,
   Monitor,
@@ -50,7 +53,8 @@ import {
   QrCode,
   Wand2,
   Cloud,
-  CloudCheck
+  CloudCheck,
+  RotateCcw
 } from "lucide-react";
 
 export type InterfaceViewMode = "mobile" | "tv" | "dual";
@@ -100,16 +104,16 @@ export default function App() {
   const [irBlasterOpen, setIrBlasterOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
+  const [selectedLibraryProfile, setSelectedLibraryProfile] = useState<DeviceProfile | null>(null);
 
   // Honest Alert / Notification Toast
   const [toast, setToast] = useState<{ type: "success" | "error" | "warning"; message: string } | null>(null);
 
-  // First-Launch Onboarding System
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {
-    const isCompleted = TokenVault.isOnboardingCompleted();
-    const saved = TokenVault.getSavedDevices() || [];
-    return !isCompleted || saved.length === 0;
-  });
+  // Startup Loading Screen
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // First-Launch Onboarding System ("Get Started" option upfront on app launch)
+  const [isOnboarding, setIsOnboarding] = useState<boolean>(true);
 
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -171,8 +175,19 @@ export default function App() {
         const proto = params.get("proto") || "android_tv_receiver";
         const pin = params.get("pin");
 
-        if (isPair && (ip || devId)) {
-          const targetIp = ip || "192.168.1.104";
+        if (isPair) {
+          if (!ip) {
+            showToast("QR pairing link missing TV IP address. Please scan TV directly.", "warning");
+            return;
+          }
+          const cleanIp = ip.trim();
+          const targetValidation = validateTvTarget(cleanIp, port);
+          if (!targetValidation.valid) {
+            showToast(targetValidation.error || "Invalid TV target in QR code.", "error");
+            return;
+          }
+
+          const targetIp = cleanIp;
           const newDev: TvDevice = {
             id: devId || `tv_${targetIp.replace(/\./g, "_")}`,
             name: decodeURIComponent(name),
@@ -183,8 +198,8 @@ export default function App() {
             port,
             protocol: decodeURIComponent(proto),
             requiresPairing: true,
-            isPaired: Boolean(pin),
-            isOnline: true,
+            isPaired: false,
+            isOnline: false,
             capabilities: {
               power: "SUPPORTED",
               navigation: "SUPPORTED",
@@ -204,12 +219,8 @@ export default function App() {
           };
 
           handleAddDevice(newDev);
-          if (pin) {
-            TokenVault.saveToken(newDev.id, `TOKEN_${pin}_${Date.now()}`);
-            showToast(`Paired via TV QR Code with ${newDev.name}!`, "success");
-          } else {
-            setPairingTarget(newDev);
-          }
+          setPairingTarget(newDev);
+          showToast(`Detected ${newDev.name} from QR code. Confirm pairing to connect.`, "warning");
         }
       }
     } catch (err) {
@@ -295,26 +306,37 @@ export default function App() {
     showToast(`Added ${newDev.name}`, "success");
   };
 
-  // Add device from Global Remote Library Profile
+  // Select device from Global Remote Library Profile
   const handleSelectFromLibrary = (profile: DeviceProfile) => {
-    const newDev: TvDevice = {
-      id: `dev_${profile.id}_${Date.now()}`,
-      name: `${profile.brand} ${profile.series}`,
-      model: profile.model,
-      platform: profile.platform,
-      ip: "192.168.1.100", // Placeholder until verified via network scan or probe
-      port: profile.defaultPort,
-      protocol: profile.protocol,
-      requiresPairing: profile.pairingMethod !== "NONE",
-      isPaired: profile.pairingMethod === "NONE",
-      isOnline: true,
-      capabilities: profile.defaultCapabilities,
-      brand: profile.brand,
-      series: profile.series
-    };
+    setRemoteLibraryOpen(false);
 
-    handleAddDevice(newDev);
-    showToast(`Loaded ${profile.brand} remote profile. Connect to TV IP to control.`, "success");
+    // If IR Universal profile, instantiate direct optical IR device without network IP
+    if (profile.platform === "ir_universal") {
+      const irDev: TvDevice = {
+        id: `ir_${profile.id}_${Date.now().toString(36)}`,
+        name: `${profile.brand} ${profile.series || profile.model} (IR)`,
+        model: profile.model,
+        platform: "ir_universal",
+        ip: "",
+        port: 0,
+        protocol: "ir_universal",
+        requiresPairing: false,
+        isPaired: true,
+        isOnline: true,
+        capabilities: profile.defaultCapabilities,
+        brand: profile.brand,
+        series: profile.series,
+        lastSeen: Date.now()
+      };
+      handleAddDevice(irDev);
+      showToast(`Added ${profile.brand} IR remote profile (38kHz Optical).`, "success");
+      return;
+    }
+
+    // Network profiles must be verified against actual TV IP address
+    setSelectedLibraryProfile(profile);
+    setScannerOpen(true);
+    showToast(`Selected ${profile.brand} ${profile.series || profile.model}. Enter your TV's Wi-Fi IP to verify connection.`, "warning");
   };
 
   // Update TV (e.g. rename or toggle favorite)
@@ -419,18 +441,20 @@ export default function App() {
     }
   };
 
+  if (isLoading) {
+    return <LoadingScreen onComplete={() => setIsLoading(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       
       {/* Top Application Bar */}
       <header className="sticky top-0 z-40 bg-zinc-900/90 backdrop-blur-md border-b border-zinc-800 px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-2 max-w-full overflow-hidden">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <div className="p-2 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-600/30 shrink-0">
-            <Tv className="w-5 h-5" />
-          </div>
+          <AppLogo size="sm" showText={false} animated={true} />
           <div className="min-w-0">
             <h1 className="font-bold text-sm sm:text-base text-zinc-100 tracking-tight flex items-center gap-1.5 truncate">
-              <span className="truncate">Global Remote Studio</span>
+              <span className="truncate">Universal Smart TV Remote</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-medium shrink-0">
                 Multi-Protocol
               </span>
@@ -513,19 +537,30 @@ export default function App() {
             )}
           </button>
 
-          {/* Setup Wizard Button */}
+          {/* Get Started Button */}
           <button
-            id="header-setup-wizard-btn"
+            id="header-get-started-btn"
             onClick={() => setIsOnboarding(true)}
             className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
               isOnboarding
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-700/40"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400/50"
+                : "bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50"
             }`}
-            title="Open First-Launch Setup Wizard"
+            title="Open Setup & Get Started Gate"
           >
-            <Wand2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="hidden sm:inline">Setup Wizard</span>
+            <Sparkles className="w-3.5 h-3.5 text-indigo-300 shrink-0 animate-pulse" />
+            <span className="hidden sm:inline font-bold">Get Started</span>
+          </button>
+
+          {/* Replay Loading Screen */}
+          <button
+            id="header-replay-loading-btn"
+            onClick={() => setIsLoading(true)}
+            className="px-2 py-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 rounded-xl text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer shrink-0"
+            title="Replay Loading Screen"
+          >
+            <RotateCcw className="w-3 h-3 text-cyan-400 shrink-0" />
+            <span className="hidden xl:inline">Intro</span>
           </button>
 
           {/* Global Remote Library */}
@@ -741,7 +776,10 @@ export default function App() {
       {/* ALL INTERACTIVE MODALS */}
       <DeviceScannerModal
         isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
+        onClose={() => {
+          setScannerOpen(false);
+          setSelectedLibraryProfile(null);
+        }}
         devices={devices}
         currentDeviceId={currentDeviceId}
         onSelectDevice={handleSelectDevice}
@@ -754,6 +792,9 @@ export default function App() {
           } catch {}
         }}
         onDevicePaired={handleAddDevice}
+        onOpenQrScanner={() => setQrScannerOpen(true)}
+        initialProfile={selectedLibraryProfile}
+        onClearInitialProfile={() => setSelectedLibraryProfile(null)}
       />
 
       {pairingTarget && (

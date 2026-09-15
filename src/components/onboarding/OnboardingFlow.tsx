@@ -11,6 +11,7 @@ import { TokenVault } from "../../pairing/tokenVault";
 import { detectHostDevice, HostDeviceInfo } from "../../utils/hostDevice";
 import { NativeBridgeService, NetworkCapabilityReport } from "../../core/nativeBridge";
 import { CAPABILITY_LABELS } from "../../core/capabilities";
+import { AppLogo } from "../common/AppLogo";
 import {
   Tv,
   Smartphone,
@@ -157,8 +158,14 @@ export function OnboardingFlow({
   // Handler: Manual Probe & Add
   const handleManualProbe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualIp.trim()) {
+    const cleanIp = manualIp.trim();
+    if (!cleanIp) {
       setManualProbeError("Please enter a valid IP address");
+      return;
+    }
+
+    if (cleanIp === "127.0.0.1" || cleanIp === "localhost") {
+      setManualProbeError("127.0.0.1 is your phone's Termux backend, not your TV! Enter the TV's Wi-Fi LAN IP (e.g. 192.168.1.x).");
       return;
     }
 
@@ -166,7 +173,7 @@ export function OnboardingFlow({
     setManualProbeError(null);
 
     const portNum = parseInt(manualPort, 10) || 8060;
-    const res = await DiscoveryService.probeIp(manualIp.trim(), portNum, manualProtocol);
+    const res = await DiscoveryService.probeIp(cleanIp, portNum, manualProtocol);
 
     setIsProbingManual(false);
 
@@ -219,8 +226,8 @@ export function OnboardingFlow({
       const data = await res.json();
       setIsPairing(false);
 
-      if (res.ok && data.success) {
-        const token = data.token || `TOKEN_${pairingPin.trim()}_${Date.now()}`;
+      if (res.ok && data.success && data.token) {
+        const token = data.token;
         TokenVault.saveToken(selectedDevice.id, token);
 
         const updatedDev: TvDevice = {
@@ -319,8 +326,8 @@ export function OnboardingFlow({
       {/* ========================================================================= */}
       {step === "WELCOME" && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center space-y-6">
-          <div className="inline-flex p-4 bg-indigo-600/20 border border-indigo-500/30 rounded-3xl text-indigo-400 shadow-xl shadow-indigo-600/10 animate-pulse">
-            <Tv className="w-12 h-12" />
+          <div className="flex justify-center">
+            <AppLogo size="xl" showText={false} animated={true} />
           </div>
 
           <div className="space-y-2">

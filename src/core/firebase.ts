@@ -28,23 +28,33 @@ import firebaseConfig from "../../firebase-applet-config.json";
 import { TvDevice } from "./types";
 
 // 1. Initialize Firebase App and Services
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+let app: any = null;
+let authInstance: any = null;
+let dbInstance: any = null;
 
-// Use initializeFirestore with auto-detect long polling to ensure reliable connectivity in sandboxed iframes
 try {
-  initializeFirestore(
-    app,
-    {
-      experimentalAutoDetectLongPolling: true,
-    },
-    firebaseConfig.firestoreDatabaseId
-  );
-} catch {
-  // If already initialized
+  if (firebaseConfig && firebaseConfig.apiKey) {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    authInstance = getAuth(app);
+    try {
+      initializeFirestore(
+        app,
+        {
+          experimentalAutoDetectLongPolling: true,
+        },
+        firebaseConfig.firestoreDatabaseId
+      );
+    } catch {
+      // If already initialized
+    }
+    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+} catch (err) {
+  console.warn("Firebase initialization deferred or offline:", err);
 }
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = authInstance;
+export const db = dbInstance;
 
 // 2. Strict Error Handling conforming to FirestoreErrorInfo
 export enum OperationType {
@@ -232,7 +242,7 @@ export async function syncDeviceToCloud(
       id: device.id,
       userId: userId,
       name: (device.name || "Smart TV").slice(0, 128),
-      ip: (device.ip || "192.168.1.1").slice(0, 64),
+      ip: (device.ip || "").slice(0, 64),
       port: Number(device.port) || 8080,
       platform: (device.platform || "generic").slice(0, 64),
       protocol: (device.protocol || "http").slice(0, 64),
@@ -272,67 +282,85 @@ export function subscribeToUserDevices(
   onUpdate: (devices: TvDevice[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  if (!db) {
+    return () => {};
+  }
   const path = `users/${userId}/devices`;
-  const devicesCol = collection(db, "users", userId, "devices");
+  try {
+    const devicesCol = collection(db, "users", userId, "devices");
 
-  return onSnapshot(
-    devicesCol,
-    (snapshot) => {
-      const devices: TvDevice[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: data.id,
-          name: data.name,
-          model: data.model || "Smart TV",
-          brand: data.manufacturer || data.name,
-          platform: data.platform || "generic",
-          ip: data.ip,
-          port: data.port,
-          protocol: data.protocol || "http",
-          requiresPairing: Boolean(data.requiresPairing),
-          isPaired: Boolean(data.isPaired),
-          isOnline: Boolean(data.isOnline),
-          token: data.token || undefined,
-          isFavorite: Boolean(data.isFavorite),
-          capabilities: data.capabilities || {
-            power: "SUPPORTED",
-            navigation: "SUPPORTED",
-            volume: "SUPPORTED",
-            media: "SUPPORTED",
-            keyboard: "SUPPORTED",
-            touchpad: "SUPPORTED",
-            apps: "SUPPORTED",
-            input: "SUPPORTED",
-            voice: "UNKNOWN",
-            channels: "SUPPORTED",
-            ir: "UNSUPPORTED",
-            bluetooth: "UNSUPPORTED",
-            wifi: "SUPPORTED",
-          },
-        } as TvDevice;
-      });
-      onUpdate(devices);
-    },
-    (error) => {
-      if (onError) {
-        onError(error);
-      } else {
-        const msg = error instanceof Error ? error.message : String(error);
-        if (
-          msg.includes("the client is offline") ||
-          msg.includes("unavailable") ||
-          msg.includes("Could not reach Cloud Firestore backend")
-        ) {
-          console.warn("Firestore offline warning in subscribeToUserDevices:", msg);
+    return onSnapshot(
+      devicesCol,
+      (snapshot) => {
+        const devices: TvDevice[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: data.id,
+            name: data.name,
+            model: data.model || "Smart TV",
+            brand: data.manufacturer || data.name,
+            platform: data.platform || "generic",
+            ip: data.ip,
+            port: data.port,
+            protocol: data.protocol || "http",
+            requiresPairing: Boolean(data.requiresPairing),
+            isPaired: Boolean(data.isPaired),
+            isOnline: Boolean(data.isOnline),
+            token: data.token || undefined,
+            isFavorite: Boolean(data.isFavorite),
+            capabilities: data.capabilities || {
+              power: "SUPPORTED",
+              navigation: "SUPPORTED",
+              volume: "SUPPORTED",
+              media: "SUPPORTED",
+              keyboard: "SUPPORTED",
+              touchpad: "SUPPORTED",
+              apps: "SUPPORTED",
+              input: "SUPPORTED",
+              voice: "UNKNOWN",
+              channels: "SUPPORTED",
+              ir: "UNSUPPORTED",
+              bluetooth: "UNSUPPORTED",
+              wifi: "SUPPORTED",
+            },
+          } as TvDevice;
+        });
+        onUpdate(devices);
+      },
+      (error) => {
+        if (onError) {
+          onError(error);
         } else {
-          handleFirestoreError(error, OperationType.GET, path);
+          const msg = error instanceof Error ? error.message : String(error);
+          if (
+            msg.includes("the client is offline") ||
+            msg.includes("unavailable") ||
+            msg.includes("Could not reach Cloud Firestore backend")
+          ) {
+            console.warn("Firestore offline warning in subscribeToUserDevices:", msg);
+          } else {
+            handleFirestoreError(error, OperationType.GET, path);
+          }
         }
       }
-    }
-  );
+    );
+  } catch (err: any) {
+    console.warn("Could not attach Firestore device listener:", err);
+    return () => {};
+  }
 }
 
 // 7. Auth state hook helper
-export function onAuthChanged(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+export function onAuthChanged(callback: (user: User | null) => void): Unsubscribe {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+  try {
+    return onAuthStateChanged(auth, callback);
+  } catch (err) {
+    console.warn("onAuthStateChanged error:", err);
+    callback(null);
+    return () => {};
+  }
 }
