@@ -23,6 +23,7 @@ import { GlobalRemoteLibraryModal } from "./components/GlobalRemoteLibraryModal"
 import { CompatibilityCenterModal } from "./components/CompatibilityCenterModal";
 import { IrBlasterModal } from "./ir/IrBlasterModal";
 import { MobileQrScannerModal } from "./mobile/components/MobileQrScannerModal";
+import { DownloadApkModal } from "./components/modals/DownloadApkModal";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import { CloudSyncModal } from "./components/modals/CloudSyncModal";
 import { auth, onAuthChanged, subscribeToUserDevices, syncDeviceToCloud } from "./core/firebase";
@@ -56,7 +57,8 @@ import {
   Wand2,
   Cloud,
   CloudCheck,
-  RotateCcw
+  RotateCcw,
+  Download
 } from "lucide-react";
 
 export type InterfaceViewMode = "mobile" | "tv" | "dual";
@@ -104,6 +106,7 @@ export default function App() {
   const [compatibilityCenterOpen, setCompatibilityCenterOpen] = useState(false);
   const [compatProfileId, setCompatProfileId] = useState<string | undefined>(undefined);
   const [irBlasterOpen, setIrBlasterOpen] = useState(false);
+  const [downloadApkOpen, setDownloadApkOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
   const [selectedLibraryProfile, setSelectedLibraryProfile] = useState<DeviceProfile | null>(null);
@@ -569,6 +572,18 @@ export default function App() {
 
         {/* Global Header Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Download App (Android APK) Button */}
+          <button
+            id="header-download-apk-btn"
+            onClick={() => setDownloadApkOpen(true)}
+            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-900/30 active:scale-95 cursor-pointer shrink-0"
+            title="Download Android APK (Direct Binary Release)"
+          >
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">Download App</span>
+            <span className="text-[10px] bg-emerald-950/60 text-emerald-200 px-1 rounded font-mono hidden md:inline">APK</span>
+          </button>
+
           {/* Cloud Sync & Firebase Account Button */}
           <button
             id="header-cloud-sync-btn"
@@ -743,6 +758,7 @@ export default function App() {
                   onOpenRemoteLibrary={() => setRemoteLibraryOpen(true)}
                   onOpenCompatibilityCenter={() => setCompatibilityCenterOpen(true)}
                   onOpenIrBlaster={() => setIrBlasterOpen(true)}
+                  onOpenDownloadApk={() => setDownloadApkOpen(true)}
                   onUnsupportedAttempt={(reason) => showToast(reason, "warning")}
                 />
               </div>
@@ -977,6 +993,11 @@ export default function App() {
         isOpen={cloudSyncOpen}
         onClose={() => setCloudSyncOpen(false)}
         localDevices={devices}
+      />
+
+      <DownloadApkModal
+        isOpen={downloadApkOpen}
+        onClose={() => setDownloadApkOpen(false)}
       />
 
       <ShareProfileModal

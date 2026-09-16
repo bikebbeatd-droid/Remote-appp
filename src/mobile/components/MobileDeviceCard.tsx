@@ -33,6 +33,7 @@ interface MobileDeviceCardProps {
   onOpenRemoteLibrary?: () => void;
   onOpenCompatibilityCenter?: () => void;
   onOpenIrBlaster?: () => void;
+  onOpenDownloadApk?: () => void;
 }
 
 export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
@@ -51,7 +52,8 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
   onOpenShareProfile,
   onOpenRemoteLibrary,
   onOpenCompatibilityCenter,
-  onOpenIrBlaster
+  onOpenIrBlaster,
+  onOpenDownloadApk
 }) => {
   const [showToolsMenu, setShowToolsMenu] = React.useState(false);
 
@@ -240,6 +242,17 @@ export const MobileDeviceCard: React.FC<MobileDeviceCardProps> = ({
                 >
                   <Radio className="w-3.5 h-3.5 text-orange-400" />
                   <span>Consumer IR Blaster</span>
+                </button>
+              )}
+
+              {onOpenDownloadApk && (
+                <button
+                  id="mobile-menu-download-apk-btn"
+                  onClick={() => { setShowToolsMenu(false); onOpenDownloadApk(); }}
+                  className="w-full text-left px-3 py-2 text-xs text-cyan-300 hover:bg-cyan-950/40 hover:text-white rounded-xl transition-colors flex items-center gap-2 cursor-pointer font-semibold"
+                >
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Download Android APK</span>
                 </button>
               )}
 

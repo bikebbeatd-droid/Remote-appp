@@ -902,6 +902,105 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// 1b. Latest Android APK Release Metadata (Cached)
+let cachedReleaseData: any = null;
+let lastReleaseFetchTime = 0;
+const RELEASE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+app.get("/api/releases/latest", async (_req, res) => {
+  const now = Date.now();
+  if (cachedReleaseData && now - lastReleaseFetchTime < RELEASE_CACHE_TTL_MS) {
+    return res.json(cachedReleaseData);
+  }
+
+  const repoOwner = "bikebbeatd-droid";
+  const repoName = "Remote-appp";
+  const defaultVersion = "1.0.0";
+  const defaultReleaseUrl = `https://github.com/${repoOwner}/${repoName}/releases/latest`;
+  const defaultDirectApk = `https://github.com/${repoOwner}/${repoName}/releases/download/v${defaultVersion}/Remote-appp-v${defaultVersion}.apk`;
+
+  try {
+    const ghRes = await fetchWithTimeout(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`,
+      {
+        headers: {
+          "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "Universal-Smart-TV-Remote-App"
+        }
+      },
+      3000
+    );
+
+    if (ghRes.ok) {
+      const releaseJson = await ghRes.json();
+      const tagName = releaseJson.tag_name || `v${defaultVersion}`;
+      const cleanVersion = tagName.replace(/^v/, "");
+      
+      // Look for APK in assets
+      const apkAsset = Array.isArray(releaseJson.assets)
+        ? releaseJson.assets.find((a: any) => a.name && a.name.endsWith(".apk"))
+        : null;
+      
+      // Look for checksum file or extract from release body
+      const sumsAsset = Array.isArray(releaseJson.assets)
+        ? releaseJson.assets.find((a: any) => a.name && a.name.includes("SHA256SUMS"))
+        : null;
+
+      let extractedChecksum: string | undefined = undefined;
+      if (releaseJson.body) {
+        const shaMatch = releaseJson.body.match(/([a-fA-F0-9]{64})/);
+        if (shaMatch) {
+          extractedChecksum = shaMatch[1];
+        }
+      }
+
+      const sizeBytes = apkAsset?.size || 0;
+      const sizeMb = sizeBytes > 0 ? (sizeBytes / (1024 * 1024)).toFixed(1) + " MB" : undefined;
+
+      cachedReleaseData = {
+        version: cleanVersion,
+        tagName,
+        name: releaseJson.name || `Remote-appp v${cleanVersion}`,
+        downloadUrl: apkAsset?.browser_download_url || `https://github.com/${repoOwner}/${repoName}/releases/download/${tagName}/Remote-appp-${tagName}.apk`,
+        fileName: apkAsset?.name || `Remote-appp-${tagName}.apk`,
+        size: sizeBytes,
+        sizeFormatted: sizeMb,
+        publishedAt: releaseJson.published_at || new Date().toISOString(),
+        checksum: extractedChecksum,
+        releasePageUrl: releaseJson.html_url || defaultReleaseUrl,
+        checksumFileUrl: sumsAsset?.browser_download_url,
+        isAvailable: true,
+        signingStatus: apkAsset?.name?.includes("unsigned") ? "Unsigned Release" : "Release Build",
+        cachedAt: now
+      };
+      lastReleaseFetchTime = now;
+      return res.json(cachedReleaseData);
+    }
+  } catch (err: any) {
+    console.debug("[Release API] GitHub fetch note:", err?.message);
+  }
+
+  // Graceful fallback with official release repository URLs
+  const fallbackData = {
+    version: defaultVersion,
+    tagName: `v${defaultVersion}`,
+    name: `Remote-appp v${defaultVersion}`,
+    downloadUrl: defaultDirectApk,
+    fileName: `Remote-appp-v${defaultVersion}.apk`,
+    size: 0,
+    sizeFormatted: undefined,
+    publishedAt: new Date().toISOString(),
+    checksum: undefined,
+    releasePageUrl: defaultReleaseUrl,
+    isAvailable: true,
+    signingStatus: "Official Release",
+    cachedAt: now
+  };
+  cachedReleaseData = fallbackData;
+  lastReleaseFetchTime = now;
+  return res.json(fallbackData);
+});
+
 // 2. Discover devices (Returns genuinely discovered and verified devices)
 app.get("/api/devices", async (_req, res) => {
   try {

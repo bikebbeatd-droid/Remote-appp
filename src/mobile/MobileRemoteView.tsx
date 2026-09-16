@@ -33,6 +33,7 @@ interface MobileRemoteViewProps {
   onOpenRemoteLibrary?: () => void;
   onOpenCompatibilityCenter?: () => void;
   onOpenIrBlaster?: () => void;
+  onOpenDownloadApk?: () => void;
   onUnsupportedAttempt?: (reason: string) => void;
 }
 
@@ -57,6 +58,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
   onOpenRemoteLibrary,
   onOpenCompatibilityCenter,
   onOpenIrBlaster,
+  onOpenDownloadApk,
   onUnsupportedAttempt
 }) => {
   return (
@@ -80,6 +82,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
         onOpenRemoteLibrary={onOpenRemoteLibrary}
         onOpenCompatibilityCenter={onOpenCompatibilityCenter}
         onOpenIrBlaster={onOpenIrBlaster}
+        onOpenDownloadApk={onOpenDownloadApk}
       />
 
       {/* 2. Mobile Mode Switcher Bar */}

@@ -1,14 +1,31 @@
 apply plugin: 'com.android.application'
 
+def calculateVersionCode = { String version ->
+    try {
+        def clean = version.replaceAll("[^0-9.]", "")
+        def parts = clean.split("\\.")
+        int major = parts.length > 0 ? parts[0].toInteger() : 1
+        int minor = parts.length > 1 ? parts[1].toInteger() : 0
+        int patch = parts.length > 2 ? parts[2].toInteger() : 0
+        return (major * 1000000) + (minor * 10000) + (patch * 100)
+    } catch (Exception e) {
+        return 1
+    }
+}
+
+def appVersionName = System.getenv("VERSION_NAME") ?: (project.hasProperty('versionName') ? project.property('versionName') : "1.0.0")
+def appVersionCode = System.getenv("VERSION_CODE") ? System.getenv("VERSION_CODE").toInteger() : (project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : calculateVersionCode(appVersionName))
+
 android {
     namespace = "com.universal.smarttv.remote"
     compileSdk = rootProject.ext.compileSdkVersion
+    
     defaultConfig {
         applicationId "com.universal.smarttv.remote"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +33,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: (project.hasProperty('RELEASE_STORE_FILE') ? project.property('RELEASE_STORE_FILE') : null)
+            if (keystorePath && file(keystorePath).exists()) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: (project.hasProperty('RELEASE_STORE_PASSWORD') ? project.property('RELEASE_STORE_PASSWORD') : "")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: (project.hasProperty('RELEASE_KEY_ALIAS') ? project.property('RELEASE_KEY_ALIAS') : "")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: (project.hasProperty('RELEASE_KEY_PASSWORD') ? project.property('RELEASE_KEY_PASSWORD') : "")
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: (project.hasProperty('RELEASE_STORE_FILE') ? project.property('RELEASE_STORE_FILE') : null)
+            if (keystorePath && file(keystorePath).exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
