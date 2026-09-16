@@ -31,6 +31,8 @@ import { DeviceProfile } from "./database/types";
 import { validateTvTarget } from "./core/networkValidation";
 import { AppLogo } from "./components/common/AppLogo";
 import { LoadingScreen } from "./components/common/LoadingScreen";
+import { App as CapApp } from "@capacitor/app";
+import { HapticsService } from "./utils/haptics";
 import {
   Tv,
   Monitor,
@@ -259,6 +261,55 @@ export default function App() {
     } catch {}
   }, []);
 
+  // Android Hardware Back Button Handling via Capacitor App
+  useEffect(() => {
+    let listenerHandle: any = null;
+
+    try {
+      CapApp.addListener("backButton", ({ canGoBack }) => {
+        // Priority 1: Close active modals
+        if (scannerOpen) { setScannerOpen(false); return; }
+        if (pairingTarget) { setPairingTarget(null); return; }
+        if (tvSelectorOpen) { setTvSelectorOpen(false); return; }
+        if (capMatrixOpen) { setCapMatrixOpen(false); return; }
+        if (protocolDocsOpen) { setProtocolDocsOpen(false); return; }
+        if (voiceRemoteOpen) { setVoiceRemoteOpen(false); return; }
+        if (buttonMapperOpen) { setButtonMapperOpen(false); return; }
+        if (customBuilderOpen) { setCustomBuilderOpen(false); return; }
+        if (learnRemoteOpen) { setLearnRemoteOpen(false); return; }
+        if (diagnosticsOpen) { setDiagnosticsOpen(false); return; }
+        if (scenesOpen) { setScenesOpen(false); return; }
+        if (shareProfileOpen) { setShareProfileOpen(false); return; }
+        if (qrScannerOpen) { setQrScannerOpen(false); return; }
+        if (remoteLibraryOpen) { setRemoteLibraryOpen(false); return; }
+        if (compatibilityCenterOpen) { setCompatibilityCenterOpen(false); return; }
+        if (irBlasterOpen) { setIrBlasterOpen(false); return; }
+        if (cloudSyncOpen) { setCloudSyncOpen(false); return; }
+        if (isOnboarding) { setIsOnboarding(false); return; }
+
+        // Priority 2: Standard history back or exit
+        if (canGoBack) {
+          window.history.back();
+        } else {
+          CapApp.exitApp();
+        }
+      }).then((handle) => {
+        listenerHandle = handle;
+      }).catch(() => {});
+    } catch {}
+
+    return () => {
+      if (listenerHandle && typeof listenerHandle.remove === "function") {
+        listenerHandle.remove();
+      }
+    };
+  }, [
+    scannerOpen, pairingTarget, tvSelectorOpen, capMatrixOpen, protocolDocsOpen,
+    voiceRemoteOpen, buttonMapperOpen, customBuilderOpen, learnRemoteOpen,
+    diagnosticsOpen, scenesOpen, shareProfileOpen, qrScannerOpen, remoteLibraryOpen,
+    compatibilityCenterOpen, irBlasterOpen, cloudSyncOpen, isOnboarding
+  ]);
+
   const currentDevice = devices.find(d => d.id === currentDeviceId) || null;
 
   // Real-time synchronization with ConnectionManager (heartbeat, latency, state)
@@ -404,6 +455,12 @@ export default function App() {
 
   // Command Execution: Runs strictly through CommandEngine -> CapabilityEngine -> TvAdapter -> Transport
   const handleSendCommand = async (command: RemoteCommandType, value?: any): Promise<boolean> => {
+    if (command === "POWER") {
+      HapticsService.heavy().catch(() => {});
+    } else {
+      HapticsService.light().catch(() => {});
+    }
+
     if (!currentDevice) {
       showToast("No compatible TV connected. Please scan Wi-Fi or select a TV.", "warning");
       return false;
