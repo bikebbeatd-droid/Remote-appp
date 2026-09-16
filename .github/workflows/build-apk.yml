@@ -1,0 +1,252 @@
+name: Build & Publish Debug APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish-debug-apk:
+    name: Build & Publish Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 2. Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Set up Java JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 4. Verify Java Environment
+        run: |
+          echo "=== Java Environment Verification ==="
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+          JAVA_VER=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d'.' -f1)
+          if [ -z "$JAVA_VER" ] || [ "$JAVA_VER" -lt 17 ]; then
+            echo "::error::Java 17 or higher is required, detected: $JAVA_VER"
+            exit 1
+          fi
+          echo "Java version verified: $JAVA_VER"
+
+      - name: 5. Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 6. Install Node Dependencies
+        run: npm ci
+
+      - name: 7. Run Code Linter & Tests
+        run: |
+          npm run lint
+          npm test
+
+      - name: 8. Build Web Distribution Assets
+        run: npm run build
+
+      - name: 9. Sync Capacitor Native Android Project
+        run: npx cap sync android
+
+      - name: 10. Prepare Android Debug Keystore
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "Generating standard debug keystore for debug build..."
+            keytool -genkey -v -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "::error::Failed to verify ~/.android/debug.keystore"
+            exit 1
+          fi
+          echo "Debug keystore configured successfully."
+
+      - name: 11. Build Android Debug APK via Gradle
+        run: |
+          cd android
+          chmod +x ./gradlew
+          echo "Building debug APK using Gradle Wrapper..."
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+
+      - name: 12. Verify Debug APK Output
+        id: verify_apk
+        run: |
+          APK_TARGET="android/app/build/outputs/apk/debug/app-debug.apk"
+          
+          if [ ! -f "$APK_TARGET" ]; then
+            echo "::error::Expected APK not found at $APK_TARGET!"
+            echo "Searching for any generated APKs in android/app/build/outputs/apk:"
+            find android/app/build/outputs/apk -type f -name "*.apk" || true
+            exit 1
+          fi
+          
+          FILE_SIZE=$(wc -c < "$APK_TARGET" | tr -d ' ')
+          if [ "$FILE_SIZE" -le 0 ]; then
+            echo "::error::Generated APK file is empty (0 bytes)!"
+            exit 1
+          fi
+          
+          echo "Verifying APK archive integrity..."
+          unzip -t "$APK_TARGET" >/dev/null
+          
+          # Calculate SHA-256
+          APK_SHA=$(sha256sum "$APK_TARGET" | awk '{print $1}')
+          SIZE_MB=$(awk "BEGIN {printf \"%.2f\", $FILE_SIZE/1048576}")
+          
+          echo "========================================================="
+          echo "DEBUG APK VERIFIED SUCCESSFULLY"
+          echo "Path: $APK_TARGET"
+          echo "Size: $FILE_SIZE bytes (${SIZE_MB} MB)"
+          echo "SHA256: $APK_SHA"
+          echo "========================================================="
+          
+          echo "apk_path=$APK_TARGET" >> $GITHUB_OUTPUT
+          echo "apk_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+          echo "apk_size_mb=${SIZE_MB} MB" >> $GITHUB_OUTPUT
+          echo "apk_sha=$APK_SHA" >> $GITHUB_OUTPUT
+
+      - name: 13. Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 14. Prepare APK Release Asset
+        id: prepare_asset
+        run: |
+          RUN_NUM="${{ github.run_number }}"
+          ASSET_NAME="Remote-appp-debug-${RUN_NUM}.apk"
+          TEMP_DIR=$(mktemp -d)
+          
+          cp "android/app/build/outputs/apk/debug/app-debug.apk" "$TEMP_DIR/$ASSET_NAME"
+          
+          cd "$TEMP_DIR"
+          sha256sum "$ASSET_NAME" > SHA256SUMS.txt
+          cd - >/dev/null
+          
+          echo "asset_dir=$TEMP_DIR" >> $GITHUB_OUTPUT
+          echo "asset_path=$TEMP_DIR/$ASSET_NAME" >> $GITHUB_OUTPUT
+          echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
+          echo "checksum_path=$TEMP_DIR/SHA256SUMS.txt" >> $GITHUB_OUTPUT
+
+      - name: 15. Publish Debug APK to GitHub Releases
+        id: publish_release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking GitHub CLI..."
+          gh --version
+          
+          TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
+          RELEASE_TITLE="Remote-appp Debug APK Build #${{ github.run_number }}"
+          TARGET_COMMIT="${{ github.sha }}"
+          ASSET_PATH="${{ steps.prepare_asset.outputs.asset_path }}"
+          CHECKSUM_PATH="${{ steps.prepare_asset.outputs.checksum_path }}"
+          
+          echo "Creating GitHub Release with tag: $TAG_NAME"
+          
+          gh release create "$TAG_NAME" \
+            "$ASSET_PATH" \
+            "$CHECKSUM_PATH" \
+            --title "$RELEASE_TITLE" \
+            --target "$TARGET_COMMIT" \
+            --latest \
+            --notes "$(cat << 'EOF'
+          ## Remote-appp — Automated Debug APK Build
+
+          ### 📱 Android APK Package
+          - **File:** \`${{ steps.prepare_asset.outputs.asset_name }}\`
+          - **Size:** ${{ steps.verify_apk.outputs.apk_size_mb }} (${{ steps.verify_apk.outputs.apk_size }} bytes)
+          - **Build Run:** \`#${{ github.run_number }}\` (Attempt \`${{ github.run_attempt }}\`)
+          - **Commit:** \`${{ github.sha }}\`
+          - **Repository:** \`bikebbeatd-droid/Remote-appp\`
+
+          ### 🔐 SHA-256 Checksum
+          \`\`\`
+          ${{ steps.verify_apk.outputs.apk_sha }}  ${{ steps.prepare_asset.outputs.asset_name }}
+          \`\`\`
+
+          ### ⚠️ Notice
+          - This is an **automatically built Debug APK** generated by GitHub Actions for testing.
+          - It is signed with a standard Android debug certificate, not a production release key.
+          - Only install on personal development and testing devices you trust.
+          EOF
+          )"
+          
+          echo "release_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_success=true" >> $GITHUB_OUTPUT
+
+      - name: 16. Report APK Download Result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "========================================================="
+          echo "=== APK BUILD & PUBLICATION REPORT ==="
+          echo "========================================================="
+          
+          APK_PATH="${{ steps.verify_apk.outputs.apk_path }}"
+          APK_SIZE="${{ steps.verify_apk.outputs.apk_size_mb }}"
+          APK_SHA="${{ steps.verify_apk.outputs.apk_sha }}"
+          RELEASE_STATUS="${{ steps.publish_release.outcome }}"
+          
+          echo "APK File Path: $APK_PATH"
+          echo "APK File Size: $APK_SIZE"
+          echo "APK SHA-256:   $APK_SHA"
+          echo "Actions Artifact: app-debug-apk (Uploaded and available)"
+          
+          if [ "$RELEASE_STATUS" = "success" ]; then
+            TAG="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
+            REL_URL="https://github.com/bikebbeatd-droid/Remote-appp/releases/tag/$TAG"
+            echo "GitHub Release: PUBLISHED"
+            echo "Release Tag: $TAG"
+            echo "Release URL: $REL_URL"
+            
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ✅ Remote-appp Debug APK Build Succeeded
+
+          - **APK File:** \`${{ steps.prepare_asset.outputs.asset_name }}\`
+          - **Size:** $APK_SIZE
+          - **SHA-256:** \`$APK_SHA\`
+          - **GitHub Actions Artifact:** \`app-debug-apk\`
+          - **GitHub Release Tag:** [\`$TAG\`]($REL_URL)
+
+          ### 📥 Download Instructions
+          1. Open the [GitHub Release Page]($REL_URL).
+          2. Under **Assets**, download \`${{ steps.prepare_asset.outputs.asset_name }}\`.
+          3. Sideload and test on your Android device.
+          EOF
+          else
+            echo "GitHub Release: FAILED / SKIPPED"
+            echo "Notice: Actions Artifact 'app-debug-apk' remains fully available in the Actions summary!"
+            
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          # ⚠️ Remote-appp Debug APK Build Succeeded (Release Notice)
+
+          - **APK Build Status:** SUCCESS
+          - **Size:** $APK_SIZE
+          - **SHA-256:** \`$APK_SHA\`
+          - **GitHub Actions Artifact:** \`app-debug-apk\` (Available for download in workflow artifacts)
+          - **Release Status:** GitHub Release creation did not complete or was skipped. The primary Actions artifact \`app-debug-apk\` is retained and ready for download.
+          EOF
+          fi
