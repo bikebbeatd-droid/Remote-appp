@@ -1,7 +1,13 @@
 import { TvAdapter } from "../types";
 import { TvDevice, RemoteCommandType, CommandExecutionResult, DeviceCapabilities } from "../../core/types";
-import { TokenVault } from "../../pairing/tokenVault";
 
+/**
+ * Samsung Tizen SmartView remote transport.
+ *
+ * The Android/WebView app connects directly to the TV's local WebSocket
+ * endpoint. No /api/command, /api/devices/probe or /api/devices/pair backend
+ * is required for normal remote-key operation.
+ */
 export class SamsungTizenAdapter implements TvAdapter {
   readonly platform = "tizen";
 
@@ -12,21 +18,18 @@ export class SamsungTizenAdapter implements TvAdapter {
       volume: "SUPPORTED",
       media: "SUPPORTED",
       keyboard: "SUPPORTED",
-      touchpad: "SUPPORTED", // Supported via ms.channel.emit pointer/mouse events
+      touchpad: "UNSUPPORTED",
       apps: "SUPPORTED",
       input: "SUPPORTED",
-      voice: "UNSUPPORTED", // Tizen SmartView phone-to-TV network protocol does not support microphone audio injection
+      voice: "UNSUPPORTED",
       channels: "SUPPORTED",
       ir: "UNSUPPORTED",
-      bluetooth: "SUPPORTED",
+      bluetooth: "UNKNOWN",
       wifi: "SUPPORTED"
     };
   }
 
-  /**
-   * Maps abstract remote commands to Samsung SmartView Tizen keycodes
-   */
-  private mapSamsungKey(command: RemoteCommandType, value?: any): string | null {
+  private mapSamsungKey(command: RemoteCommandType): string | null {
     switch (command) {
       case "POWER": return "KEY_POWER";
       case "HOME": return "KEY_HOME";
@@ -71,119 +74,137 @@ export class SamsungTizenAdapter implements TvAdapter {
     }
   }
 
+  private getClientName(): string {
+    return "Universal Smart Remote";
+  }
+
+  private getWebSocketUrl(device: TvDevice): string {
+    const port = device.port === 8001 ? 8001 : 8002;
+    const scheme = port === 8002 ? "wss" : "ws";
+    const encodedName = btoa(this.getClientName());
+    return `${scheme}://${device.ip}:${port}/api/v2/channels/samsung.remote.control?name=${encodeURIComponent(encodedName)}`;
+  }
+
+  private openSocket(device: TvDevice, timeoutMs = 4500): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      const socket = new WebSocket(this.getWebSocketUrl(device));
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        fn();
+      };
+      const timer = setTimeout(() => {
+        try { socket.close(); } catch {}
+        finish(() => reject(new Error("Samsung TV WebSocket connection timed out.")));
+      }, timeoutMs);
+
+      socket.onopen = () => finish(() => resolve(socket));
+      socket.onerror = () => finish(() => reject(new Error("Samsung TV rejected the WebSocket connection. Check that the phone and TV are on the same Wi-Fi and allow remote access on the TV.")));
+      socket.onclose = () => {
+        if (!settled) finish(() => reject(new Error("Samsung TV closed the WebSocket connection.")));
+      };
+    });
+  }
+
   async executeCommand(
     device: TvDevice,
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
     const startTime = performance.now();
-    const token = TokenVault.getToken(device.id) || device.token;
-
-    // Check voice rejection
     if (command === "VOICE_QUERY") {
       return {
         success: false,
         command,
         timestamp: Date.now(),
         latencyMs: 0,
-        error: "Voice audio streaming is UNSUPPORTED on this device: Samsung SmartView does not expose a microphone audio injection channel over local network."
+        error: "Voice audio streaming is not supported by the Samsung local remote-key protocol."
       };
     }
 
+    const key = this.mapSamsungKey(command);
+    if (!key) {
+      return {
+        success: false,
+        command,
+        value,
+        timestamp: Date.now(),
+        latencyMs: 0,
+        error: `Samsung Tizen transport does not implement command ${command}.`
+      };
+    }
+
+    let socket: WebSocket | undefined;
     try {
-      const samsungKey = this.mapSamsungKey(command, value);
+      socket = await this.openSocket(device);
+      socket.send(JSON.stringify({
+        method: "ms.remote.control",
+        params: {
+          Cmd: "Click",
+          DataOfCmd: key,
+          Option: "false",
+          TypeOfRemote: "SendRemoteKey"
+        }
+      }));
 
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          mappedKey: samsungKey,
-          value,
-          token,
-          protocol: "samsung_tizen_ws"
-        })
-      });
-
-      const data = await res.json();
       const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Samsung Tizen SmartView command delivery failed."
-        };
-      }
-
+      try { socket.close(); } catch {}
       return {
         success: true,
         command,
         value,
         timestamp: Date.now(),
         latencyMs,
-        protocol: "samsung_tizen_ws"
+        protocol: "samsung_tizen_ws_direct"
       };
     } catch (err: any) {
+      try { socket?.close(); } catch {}
       return {
         success: false,
         command,
         value,
         timestamp: Date.now(),
         latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Samsung TV at ${device.ip}:${device.port || 8002}. Ensure IP Remote is enabled under TV Expert Settings.`
+        error: err?.message || `Could not reach Samsung TV at ${device.ip}:${device.port || 8002}.`
       };
     }
   }
 
   async authenticate(
     device: TvDevice,
-    pin: string,
-    clientName = "Universal Smart Remote"
+    _pin: string,
+    _clientName = "Universal Smart Remote"
   ): Promise<{ success: boolean; token?: string; error?: string }> {
     try {
-      const res = await fetch("/api/devices/pair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          pin,
-          clientName,
-          protocol: "samsung_tizen_ws"
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return { success: false, error: data.error || "Samsung TV rejected pairing request. Check on-screen confirmation popup." };
-      }
-
-      if (data.token) {
-        TokenVault.saveToken(device.id, data.token);
-      }
-
-      return { success: true, token: data.token };
+      const socket = await this.openSocket(device);
+      try { socket.close(); } catch {}
+      return {
+        success: true,
+        token: "samsung_local_ws"
+      };
     } catch (err: any) {
-      return { success: false, error: err.message || "Failed to pair with Samsung TV." };
+      return {
+        success: false,
+        error: err?.message || "Samsung TV pairing/connection failed. Accept the connection prompt on the TV if shown."
+      };
     }
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
     const start = performance.now();
     try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 8002, protocol: "samsung_tizen_ws" })
-      });
+      const socket = await this.openSocket(device, 3000);
       const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
+      try { socket.close(); } catch {}
+      return { online: true, latencyMs };
     } catch (err: any) {
-      return { online: false, error: err.message };
+      return {
+        online: false,
+        latencyMs: Math.round(performance.now() - start),
+        error: err?.message || "Samsung TV is unreachable."
+      };
     }
   }
 }
