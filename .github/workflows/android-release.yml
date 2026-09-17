@@ -40,62 +40,68 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: 3. Set up Java JDK 21
+      - name: 3. Set up Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
           cache: 'gradle'
 
-      - name: 4. Set up Android SDK
+      - name: 4. Verify Android build toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          test -f android/gradle/wrapper/gradle-wrapper.properties
+          grep -q 'gradle-8.14.3-all.zip' android/gradle/wrapper/gradle-wrapper.properties
+          grep -q "com.android.tools.build:gradle:8.13.0" android/build.gradle
+          echo "Verified Android project toolchain: Java 17, AGP 8.13.0, Gradle 8.14.3"
+
+      - name: 5. Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 5. Extract Version Metadata
+      - name: 6. Extract Version Metadata
         id: versioning
         run: |
-          # Extract version from tag (e.g. v1.2.0 -> 1.2.0) or package.json
           if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" =~ ^v[0-9] ]]; then
             RAW_TAG="${{ github.ref_name }}"
             VER_NAME="${RAW_TAG#v}"
           else
             VER_NAME=$(node -p "require('./package.json').version")
           fi
-          
-          # Deterministic integer versionCode (e.g., 1.2.3 -> 1020300)
+
           IFS='.' read -r -a PARTS <<< "$VER_NAME"
           MAJOR=${PARTS[0]:-1}
           MINOR=${PARTS[1]:-0}
           PATCH=${PARTS[2]:-0}
-          # Strip non-numeric suffixes
           MAJOR=$(echo "$MAJOR" | tr -dc '0-9')
           MINOR=$(echo "$MINOR" | tr -dc '0-9')
           PATCH=$(echo "$PATCH" | tr -dc '0-9')
           [ -z "$MAJOR" ] && MAJOR=1
           [ -z "$MINOR" ] && MINOR=0
           [ -z "$PATCH" ] && PATCH=0
-          
           VER_CODE=$(( (MAJOR * 1000000) + (MINOR * 10000) + (PATCH * 100) ))
-          
-          echo "VERSION_NAME=$VER_NAME" >> $GITHUB_OUTPUT
-          echo "VERSION_CODE=$VER_CODE" >> $GITHUB_OUTPUT
+
+          echo "VERSION_NAME=$VER_NAME" >> "$GITHUB_OUTPUT"
+          echo "VERSION_CODE=$VER_CODE" >> "$GITHUB_OUTPUT"
           echo "Resolved Version: Name=$VER_NAME, Code=$VER_CODE"
 
-      - name: 6. Install NPM Dependencies
+      - name: 7. Install NPM Dependencies
         run: npm ci
 
-      - name: 7. Run Code Quality Linter
+      - name: 8. Run Code Quality Linter
         run: npm run lint
 
-      - name: 8. Execute Automated Test Suite
+      - name: 9. Execute Automated Test Suite
         run: npm test
 
-      - name: 9. Compile Web App Assets
+      - name: 10. Compile Web App Assets
         run: npm run build
 
-      - name: 10. Sync Capacitor Android Native Project
+      - name: 11. Sync Capacitor Android Native Project
         run: npx cap sync android
 
-      - name: 11. Configure Android Keystore Signing (If Secret Present)
+      - name: 12. Configure Android Keystore Signing (If Secret Present)
         id: signing_config
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -107,31 +113,33 @@ jobs:
             echo "Keystore secret detected. Configuring release signing..."
             mkdir -p android/app/keystore
             echo "$KEYSTORE_BASE64" | base64 --decode > android/app/keystore/release.keystore
-            echo "ANDROID_KEYSTORE_FILE=keystore/release.keystore" >> $GITHUB_ENV
-            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
-            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
-            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
-            echo "IS_SIGNED=true" >> $GITHUB_OUTPUT
-            echo "SIGNING_STATUS=Signed Production Release" >> $GITHUB_OUTPUT
+            echo "ANDROID_KEYSTORE_FILE=keystore/release.keystore" >> "$GITHUB_ENV"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "IS_SIGNED=true" >> "$GITHUB_OUTPUT"
+            echo "SIGNING_STATUS=Signed Production Release" >> "$GITHUB_OUTPUT"
           else
-            echo "No keystore secrets configured. Building unsigned release / debug APK..."
-            echo "IS_SIGNED=false" >> $GITHUB_OUTPUT
-            echo "SIGNING_STATUS=Unsigned Release" >> $GITHUB_OUTPUT
+            echo "No keystore secrets configured. Debug builds remain debug-signed; release builds use the project's existing signing configuration."
+            echo "IS_SIGNED=false" >> "$GITHUB_OUTPUT"
+            echo "SIGNING_STATUS=Project release signing configuration" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 12. Build Android APK via Gradle
+      - name: 13. Build Android APK via Gradle Wrapper
         env:
           VERSION_NAME: ${{ steps.versioning.outputs.VERSION_NAME }}
           VERSION_CODE: ${{ steps.versioning.outputs.VERSION_CODE }}
+        working-directory: android
+        shell: bash
         run: |
-          cd android
+          set -euo pipefail
           chmod +x ./gradlew
-          
+
           BUILD_TYPE="${{ inputs.build_type }}"
           if [ -z "$BUILD_TYPE" ]; then
             BUILD_TYPE="release"
           fi
-          
+
           if [ "$BUILD_TYPE" = "release" ]; then
             echo "Building Release APK with versionName=$VERSION_NAME, versionCode=$VERSION_CODE..."
             ./gradlew assembleRelease --stacktrace --no-daemon
@@ -140,67 +148,55 @@ jobs:
             ./gradlew assembleDebug --stacktrace --no-daemon
           fi
 
-      - name: 13. Locate, Verify & Package Output APK
+      - name: 14. Locate, Verify & Package Output APK
         id: package_apk
+        shell: bash
         run: |
+          set -euo pipefail
           VER_NAME="${{ steps.versioning.outputs.VERSION_NAME }}"
           IS_SIGNED="${{ steps.signing_config.outputs.IS_SIGNED }}"
-          
-          # Find produced APK
+
           FOUND_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | sort | tail -n 1)
-          
           if [ -z "$FOUND_APK" ] || [ ! -f "$FOUND_APK" ]; then
             echo "::error::No APK file generated in android/app/build/outputs/apk!"
             exit 1
           fi
-          
-          # Check size > 0
+
           FILE_SIZE=$(wc -c < "$FOUND_APK" | tr -d ' ')
           if [ "$FILE_SIZE" -le 0 ]; then
             echo "::error::Generated APK file is empty (0 bytes)!"
             exit 1
           fi
-          
-          # Verify ZIP integrity of APK
-          echo "Verifying APK archive integrity..."
+
           unzip -t "$FOUND_APK" >/dev/null
-          
-          # Determine destination clean filename
+
           if [ "$IS_SIGNED" = "true" ]; then
             CLEAN_NAME="Remote-appp-v${VER_NAME}.apk"
           else
             CLEAN_NAME="Remote-appp-v${VER_NAME}-unsigned.apk"
           fi
-          
+
           mkdir -p dist-release
           cp "$FOUND_APK" "dist-release/$CLEAN_NAME"
-          
-          # Compute SHA-256 Checksum
           cd dist-release
           sha256sum "$CLEAN_NAME" > SHA256SUMS.txt
           CHECKSUM=$(cut -d ' ' -f 1 SHA256SUMS.txt)
           cd ..
-          
-          echo "APK_FILE=dist-release/$CLEAN_NAME" >> $GITHUB_OUTPUT
-          echo "APK_FILENAME=$CLEAN_NAME" >> $GITHUB_OUTPUT
-          echo "APK_SIZE=$FILE_SIZE" >> $GITHUB_OUTPUT
-          echo "APK_CHECKSUM=$CHECKSUM" >> $GITHUB_OUTPUT
-          
-          echo "========================================================="
-          echo "APK Package Ready: dist-release/$CLEAN_NAME"
-          echo "Size: $FILE_SIZE bytes"
-          echo "SHA256: $CHECKSUM"
-          echo "========================================================="
 
-      - name: 14. Upload Artifact
+          echo "APK_FILE=dist-release/$CLEAN_NAME" >> "$GITHUB_OUTPUT"
+          echo "APK_FILENAME=$CLEAN_NAME" >> "$GITHUB_OUTPUT"
+          echo "APK_SIZE=$FILE_SIZE" >> "$GITHUB_OUTPUT"
+          echo "APK_CHECKSUM=$CHECKSUM" >> "$GITHUB_OUTPUT"
+
+      - name: 15. Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package_apk.outputs.APK_FILENAME }}
-          path: |
-            dist-release/*
+          path: dist-release/*
+          if-no-files-found: error
           retention-days: 30
 
-      - name: 15. Create GitHub Release
+      - name: 16. Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
@@ -214,31 +210,11 @@ jobs:
           body: |
             ## Universal Smart TV Remote — Release v${{ steps.versioning.outputs.VERSION_NAME }}
 
-            ### 📱 Android APK Download
-            - **Binary File:** [`${{ steps.package_apk.outputs.APK_FILENAME }}`](https://github.com/bikebbeatd-droid/Remote-appp/releases/download/${{ github.ref_name }}/${{ steps.package_apk.outputs.APK_FILENAME }})
-            - **File Size:** ${{ steps.package_apk.outputs.APK_SIZE }} bytes
-            - **Signing Status:** `${{ steps.signing_config.outputs.SIGNING_STATUS }}`
-            - **Commit:** `${{ github.sha }}`
-            - **Build Date:** `${{ github.event.head_commit.timestamp || 'Automated CI Release' }}`
+            ### Android APK
+            - File: `${{ steps.package_apk.outputs.APK_FILENAME }}`
+            - Size: ${{ steps.package_apk.outputs.APK_SIZE }} bytes
+            - Signing: `${{ steps.signing_config.outputs.SIGNING_STATUS }}`
+            - Commit: `${{ github.sha }}`
+            - SHA-256: `${{ steps.package_apk.outputs.APK_CHECKSUM }}`
 
-            ### 🔐 Integrity Checksum
-            ```
-            ${{ steps.package_apk.outputs.APK_CHECKSUM }}  ${{ steps.package_apk.outputs.APK_FILENAME }}
-            ```
-
-            ### 🚀 Installation Guide
-            1. Download the APK file (`${{ steps.package_apk.outputs.APK_FILENAME }}`) directly to your Android phone or tablet.
-            2. Open the downloaded APK.
-            3. If prompted by Android, grant **"Allow from this source"** for your browser or file manager.
-            4. Tap **Install** to finish installing **Universal Smart TV Remote**.
-            5. Connect your phone to the same Wi-Fi network as your Smart TV or use the optical IR Blaster if your device has an IR transmitter.
-
-            ### ✨ Supported TV Platforms & Protocols
-            - **Google TV / Android TV** (Remote Service v2 TLS, mDNS discovery)
-            - **Samsung Smart TVs** (Tizen SmartView WebSocket & token auth)
-            - **LG webOS Smart TVs** (SSAP WebSocket protocol & client key)
-            - **Roku Streaming Players & Roku TVs** (ECP REST & SSDP discovery)
-            - **Sony BRAVIA 4K/OLED** (IRCC REST & Pre-Shared Key)
-            - **Amazon Fire TV, Philips, Panasonic, Vizio SmartCast, Apple TV**
-            - **Optical Consumer IR Blaster** (38kHz hardware emitter support)
-            - **10-Foot TV Companion Receiver Mode** (Display big-screen receiver on any browser)
+            This release is built from the repository's Android configuration using Java 17, Android Gradle Plugin 8.13.0, and Gradle 8.14.3. Capabilities and TV compatibility depend on the actual TV model, enabled remote-control settings, protocol, and network conditions.
