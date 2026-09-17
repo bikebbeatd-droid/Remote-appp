@@ -1,4 +1,4 @@
-name: Build & Publish Debug APK
+name: Build Android APK
 
 on:
   push:
@@ -13,9 +13,8 @@ env:
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
-  build-debug-apk:
+  build-apk:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,23 +40,17 @@ jobs:
           npm --version
           test -f android/gradle/wrapper/gradle-wrapper.properties
           grep -q 'gradle-8.14.3-all.zip' android/gradle/wrapper/gradle-wrapper.properties
-          grep -q "com.android.tools.build:gradle:8.13.0" android/build.gradle
-          echo "Verified: Node.js 22 + Java 21 + AGP 8.13.0 + Gradle 8.14.3"
+          grep -q 'com.android.tools.build:gradle:8.13.0' android/build.gradle
 
       - name: Setup Android SDK packages
         shell: bash
         run: |
           set -euo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
-          fi
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"; fi
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-          test -d "$ANDROID_HOME/platforms/android-36"
-          test -d "$ANDROID_HOME/build-tools/36.0.0"
-          echo "Android SDK 36 packages ready"
 
       - name: Install npm dependencies
         run: npm install --no-audit --no-fund
@@ -76,34 +69,33 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        shell: bash
         run: |
-          set -euo pipefail
           chmod +x ./gradlew
           ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Verify APK
+      - name: Verify APK and checksum
         shell: bash
         run: |
           set -euo pipefail
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           sha256sum "$APK" | tee apk-sha256.txt
           echo "APK size: $(du -h "$APK" | cut -f1)"
 
-      - name: Upload debug APK artifact
+      # APK distribution stays outside the app. GitHub Actions artifacts/releases
+      # are the only distribution outputs produced by CI.
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: Remote-appp-debug-apk-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            apk-sha256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release
-        id: release
-        continue-on-error: true
+      - name: Publish GitHub Release APK
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -113,28 +105,21 @@ jobs:
           ASSET="Remote-appp-debug-${{ github.run_number }}.apk"
           cp "$APK" "$ASSET"
           TAG="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-          TITLE="Remote-appp Debug APK Build #${{ github.run_number }}"
           gh release create "$TAG" "$ASSET" \
             --target "${{ github.sha }}" \
-            --title "$TITLE" \
+            --title "Remote-appp Debug APK Build #${{ github.run_number }}" \
             --latest \
-            --notes "Debug APK for testing the current main branch.\n\nRun: #${{ github.run_number }}\nAttempt: ${{ github.run_attempt }}\nCommit: ${{ github.sha }}\n\nDebug-signed; not a Play Store production build.\nAndroid toolchain: Node.js 22, AGP 8.13.0, Gradle 8.14.3, Java 21, compileSdk 36, targetSdk 36, minSdk 24."
+            --notes "Debug APK for testing. APK is distributed only through GitHub Actions/Release; it is not embedded in the app.\n\nCommit: ${{ github.sha }}\nNode.js 22 / Java 21 / AGP 8.13.0 / Gradle 8.14.3 / compileSdk 36 / targetSdk 36 / minSdk 24."
 
       - name: Report build result
         if: always()
-        shell: bash
         run: |
-          echo "## Debug APK Build" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Android APK Build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- APK distribution: GitHub Actions artifact + GitHub Release only" >> "$GITHUB_STEP_SUMMARY"
           echo "- Node.js: 22 LTS" >> "$GITHUB_STEP_SUMMARY"
           echo "- Java: 21" >> "$GITHUB_STEP_SUMMARY"
           echo "- AGP: 8.13.0" >> "$GITHUB_STEP_SUMMARY"
           echo "- Gradle: 8.14.3" >> "$GITHUB_STEP_SUMMARY"
           echo "- Android SDK: compile/target 36, min 24" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            echo "- APK generated: yes" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- APK generated: no" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f apk-sha256.txt ]; then
-            echo "- SHA-256: $(cat apk-sha256.txt)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then echo "- APK generated: yes" >> "$GITHUB_STEP_SUMMARY"; else echo "- APK generated: no" >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ -f apk-sha256.txt ]; then echo "- SHA-256: $(cat apk-sha256.txt)" >> "$GITHUB_STEP_SUMMARY"; fi
