@@ -5,18 +5,119 @@
     overflow-x: hidden;
     max-width: 100vw;
     -webkit-tap-highlight-color: transparent;
+    background: #050507;
   }
+
+  body {
+    min-height: 100vh;
+    color: #f4f4f5;
+    text-rendering: optimizeLegibility;
+  }
+
+  button, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+}
+
+/* Premium Universal Remote visual system */
+:root {
+  color-scheme: dark;
+  --remote-bg: #050507;
+  --remote-panel: rgba(16, 16, 20, 0.82);
+  --remote-panel-strong: rgba(23, 23, 28, 0.96);
+  --remote-line: rgba(255, 255, 255, 0.09);
+  --remote-accent: #6366f1;
+  --remote-cyan: #22d3ee;
+  --remote-green: #34d399;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.18), transparent 34rem),
+    radial-gradient(circle at 100% 45%, rgba(34, 211, 238, 0.06), transparent 28rem),
+    var(--remote-bg);
+}
+
+.remote-glass {
+  background: var(--remote-panel);
+  border: 1px solid var(--remote-line);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.remote-surface {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), transparent 25%),
+    var(--remote-panel-strong);
+  border: 1px solid var(--remote-line);
+}
+
+.remote-button {
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.045);
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.remote-button:hover {
+  background: rgba(255,255,255,0.075);
+  border-color: rgba(255,255,255,0.14);
+}
+
+.remote-button:active {
+  transform: scale(0.95);
+}
+
+.remote-button-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border-color: rgba(165,180,252,0.35);
+  box-shadow: 0 10px 28px rgba(79,70,229,0.28);
+}
+
+.remote-button-primary:hover {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+
+.remote-icon-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remote-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.remote-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.remote-number {
+  font-variant-numeric: tabular-nums;
 }
 
 /* 10-Foot UI High-Contrast Focus Ring Animation */
 @keyframes tvFocusPulse {
   0%, 100% {
-    box-shadow: 0 0 0 4px #6366f1, 0 0 25px rgba(99, 102, 241, 0.7);
-    transform: scale(1.06);
+    box-shadow: 0 0 0 3px #6366f1, 0 0 22px rgba(99, 102, 241, 0.45);
+    transform: scale(1.04);
   }
   50% {
-    box-shadow: 0 0 0 5px #a5b4fc, 0 0 35px rgba(165, 180, 252, 0.9);
-    transform: scale(1.08);
+    box-shadow: 0 0 0 4px #a5b4fc, 0 0 30px rgba(165, 180, 252, 0.65);
+    transform: scale(1.06);
   }
 }
 
@@ -25,12 +126,37 @@
   z-index: 30;
 }
 
+/* Subtle status animation */
+@keyframes remotePulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+
+.remote-live-pulse {
+  animation: remotePulse 1.8s ease-in-out infinite;
+}
+
 /* Custom scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
+/* Better mobile tap behavior */
+@media (max-width: 640px) {
+  .remote-button {
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
