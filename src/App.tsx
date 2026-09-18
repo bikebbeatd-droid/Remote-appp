@@ -69,7 +69,7 @@ function generateCryptographicPin(): string {
     window.crypto.getRandomValues(array);
     return String(100000 + (array[0] % 900000));
   }
-  return "749215";
+  throw new Error("Secure random number generation is unavailable on this device.");
 }
 
 export default function App() {
@@ -108,7 +108,7 @@ export default function App() {
   const [irBlasterOpen, setIrBlasterOpen] = useState(false);
   const [downloadApkOpen, setDownloadApkOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(auth?.currentUser ?? null);
   const [selectedLibraryProfile, setSelectedLibraryProfile] = useState<DeviceProfile | null>(null);
 
   // Honest Alert / Notification Toast
