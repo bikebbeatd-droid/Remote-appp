@@ -470,7 +470,7 @@ public final class AndroidTvRemoteV2 {
 
     private static String json(boolean success, String message) {
         String m = message == null ? "" : message.replace("\\", "\\\\").replace(""", "\\"");
-        return "{\"success\":" + (success ? "true" : "false") + ",\"message\":\"" + m + "\"}";
+        return "{\\"success\\":" + (success ? "true" : "false") + ",\\"message\\":\\"" + m + "\\"}";
     }
 
     private static String safeMessage(Exception e) {
