@@ -3,6 +3,9 @@ package com.universal.smarttv.remote;
 import android.content.Context;
 import android.hardware.ConsumerIrManager;
 import android.os.Bundle;
+import android.net.nsd.NsdManager;
+import android.net.nsd.NsdServiceInfo;
+import android.os.Build;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 
@@ -12,6 +15,8 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MainActivity extends BridgeActivity {
 
@@ -32,6 +37,9 @@ public class MainActivity extends BridgeActivity {
         private final Context context;
         private final ConsumerIrManager irManager;
         private final AndroidTvRemoteV2 androidTvRemote;
+        private final NsdManager nsdManager;
+        private final Map<String, NsdServiceInfo> androidTvServices = new ConcurrentHashMap<>();
+        private NsdManager.DiscoveryListener discoveryListener;
 
         public AndroidRemoteBridge(Context context) {
             this.context = context.getApplicationContext();
@@ -41,6 +49,7 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception ignored) {}
             this.irManager = manager;
             this.androidTvRemote = new AndroidTvRemoteV2(this.context);
+            this.nsdManager = (NsdManager) this.context.getSystemService(Context.NSD_SERVICE);
         }
 
         @JavascriptInterface
@@ -71,6 +80,66 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception e) {
                 return false;
             }
+        }
+
+        @JavascriptInterface
+        public synchronized boolean startAndroidTvDiscovery() {
+            if (nsdManager == null) return false;
+            stopAndroidTvDiscovery();
+            discoveryListener = new NsdManager.DiscoveryListener() {
+                @Override public void onStartDiscoveryFailed(String serviceType, int errorCode) { discoveryListener = null; }
+                @Override public void onStopDiscoveryFailed(String serviceType, int errorCode) { }
+                @Override public void onDiscoveryStarted(String serviceType) { }
+                @Override public void onDiscoveryStopped(String serviceType) { }
+                @Override public void onServiceFound(NsdServiceInfo serviceInfo) {
+                    if ("_androidtvremote2._tcp".equalsIgnoreCase(serviceInfo.getServiceType())) {
+                        nsdManager.resolveService(serviceInfo, new NsdManager.ResolveListener() {
+                            @Override public void onResolveFailed(NsdServiceInfo info, int errorCode) { }
+                            @Override public void onServiceResolved(NsdServiceInfo resolved) {
+                                if (resolved.getHost() != null) androidTvServices.put(resolved.getServiceName(), resolved);
+                            }
+                        });
+                    }
+                }
+                @Override public void onServiceLost(NsdServiceInfo serviceInfo) { androidTvServices.remove(serviceInfo.getServiceName()); }
+            };
+            try {
+                nsdManager.discoverServices("_androidtvremote2._tcp", NsdManager.PROTOCOL_DNS_SD, discoveryListener);
+                return true;
+            } catch (Exception e) {
+                discoveryListener = null;
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public synchronized void stopAndroidTvDiscovery() {
+            if (nsdManager != null && discoveryListener != null) {
+                try { nsdManager.stopServiceDiscovery(discoveryListener); } catch (Exception ignored) {}
+                discoveryListener = null;
+            }
+        }
+
+        @JavascriptInterface
+        public String getAndroidTvDiscoveredDevices() {
+            StringBuilder json = new StringBuilder("[");
+            boolean first = true;
+            for (NsdServiceInfo info : androidTvServices.values()) {
+                if (info.getHost() == null) continue;
+                if (!first) json.append(',');
+                first = false;
+                String name = info.getServiceName() == null ? "Android TV" : info.getServiceName();
+                String host = info.getHost().getHostAddress();
+                json.append("{\\"name\\":\\"").append(jsonEscape(name))
+                    .append("\\",\\"host\\":\\"").append(jsonEscape(host))
+                    .append("\\",\\"port\\":").append(info.getPort())
+                    .append('}');
+            }
+            return json.append(']').toString();
+        }
+
+        private static String jsonEscape(String value) {
+            return value == null ? "" : value.replace("\\\\", "\\\\\\\\").replace("\\\"", "\\\\\\\"");
         }
 
         @JavascriptInterface
