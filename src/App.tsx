@@ -534,187 +534,84 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       
-      {/* Top Application Bar */}
-      <header className="sticky top-0 z-40 bg-zinc-900/90 backdrop-blur-md border-b border-zinc-800 px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-2 max-w-full overflow-hidden">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-          <AppLogo size="sm" showText={false} animated={true} />
-          <div className="min-w-0">
-            <h1 className="font-bold text-sm sm:text-base text-zinc-100 tracking-tight flex items-center gap-1.5 truncate">
-              <span className="truncate">Universal Smart TV Remote</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-medium shrink-0">
-                Multi-Protocol
-              </span>
-            </h1>
-            <p className="text-[11px] text-zinc-400 hidden md:block truncate">
-              Universal Smart TV, Streaming Box & Optical IR Controller Platform
-            </p>
+      {/* Premium Universal Remote Header */}
+      <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-7">
+          <div className="flex min-h-16 items-center gap-3 py-2">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <AppLogo size="sm" showText={false} animated={true} />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-sm font-bold tracking-tight text-white sm:text-base">Universal Remote</h1>
+                  <span className="hidden rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-300 sm:inline-flex">Multi-Protocol</span>
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-zinc-400">
+                  <span className={`h-1.5 w-1.5 rounded-full ${connectionState === "CONNECTED" ? "bg-emerald-400" : connectionState === "CONNECTING" ? "bg-amber-400 animate-pulse" : "bg-zinc-600"}`} />
+                  <span className="truncate">{currentDevice ? currentDevice.name : "No TV selected"}</span>
+                  <span className="text-zinc-700">•</span>
+                  <span className="hidden sm:inline">{connectionState === "CONNECTED" ? "Connected" : connectionState === "CONNECTING" ? "Connecting…" : "Ready to connect"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-1">
+              <button onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-500 active:scale-95" title="Find TVs on Wi-Fi">
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Scan</span>
+              </button>
+              <button onClick={() => setTvSelectorOpen(true)} className="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white sm:inline-flex" title="Choose active TV">
+                <Tv className="h-3.5 w-3.5" />
+                <span>TVs</span>
+              </button>
+              <button onClick={() => setRemoteLibraryOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white" title="Open remote library">
+                <LayoutGrid className="h-3.5 w-3.5 text-indigo-400" />
+                <span className="hidden md:inline">Library</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Global Interface Switcher (Mobile vs TV Receiver vs Dual Studio) */}
-        <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-950 p-1 rounded-2xl border border-zinc-800 shrink-0">
-          <button
-            id="view-mode-mobile-btn"
-            onClick={() => setViewMode("mobile")}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === "mobile"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-            title="Switch to Mobile Phone Remote View"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Phone Remote</span>
-          </button>
-
-          <button
-            id="view-mode-tv-btn"
-            onClick={() => setViewMode("tv")}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === "tv"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-            title="Switch to 10-Foot Android TV Receiver View"
-          >
-            <Monitor className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">TV Receiver (10ft)</span>
-          </button>
-
-          <button
-            id="view-mode-dual-btn"
-            onClick={() => setViewMode("dual")}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              viewMode === "dual"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-            title="Switch to Dual Studio Mode (Phone + TV Side-by-Side)"
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Dual Studio</span>
-          </button>
-        </div>
-
-        {/* Global Header Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Download App (Android APK) Button */}
-          <button
-            id="header-download-apk-btn"
-            onClick={() => setDownloadApkOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-900/30 active:scale-95 cursor-pointer shrink-0"
-            title="Download Android APK (Direct Binary Release)"
-          >
-            <Download className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Download App</span>
-            <span className="text-[10px] bg-emerald-950/60 text-emerald-200 px-1 rounded font-mono hidden md:inline">APK</span>
-          </button>
-
-          {/* Cloud Sync & Firebase Account Button */}
-          <button
-            id="header-cloud-sync-btn"
-            onClick={() => setCloudSyncOpen(true)}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-              firebaseUser
-                ? "bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-200 border border-indigo-500/50 shadow-sm"
-                : "bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-            }`}
-            title={firebaseUser ? `Signed in as ${firebaseUser.email || firebaseUser.displayName} - Cloud Sync Active` : "Sync TVs to Cloud Account"}
-          >
-            {firebaseUser ? (
-              <>
-                <CloudCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="hidden md:inline">Cloud Sync</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              </>
-            ) : (
-              <>
-                <Cloud className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span className="hidden md:inline">Cloud Sync</span>
-              </>
-            )}
-          </button>
-
-          {/* Get Started Button */}
-          <button
-            id="header-get-started-btn"
-            onClick={() => setIsOnboarding(true)}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-              isOnboarding
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400/50"
-                : "bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50"
-            }`}
-            title="Open Setup & Get Started Gate"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-300 shrink-0 animate-pulse" />
-            <span className="hidden sm:inline font-bold">Get Started</span>
-          </button>
-
-          {/* Replay Loading Screen */}
-          <button
-            id="header-replay-loading-btn"
-            onClick={() => setIsLoading(true)}
-            className="px-2 py-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 rounded-xl text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer shrink-0"
-            title="Replay Loading Screen"
-          >
-            <RotateCcw className="w-3 h-3 text-cyan-400 shrink-0" />
-            <span className="hidden xl:inline">Intro</span>
-          </button>
-
-          {/* Global Remote Library */}
-          <button
-            id="header-remote-library-btn"
-            onClick={() => setRemoteLibraryOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-950/50 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-            title="Search Global Remote Library"
-          >
-            <LayoutGrid className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="hidden md:inline">Remote Library</span>
-          </button>
-
-          {/* Check My TV Compatibility */}
-          <button
-            id="header-compatibility-center-btn"
-            onClick={() => setCompatibilityCenterOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-            title="Check My TV Compatibility"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="hidden md:inline">Check My TV</span>
-          </button>
-
-          {/* Protocol Specs & Documentation Button */}
-          <button
-            id="header-protocol-docs-btn"
-            onClick={() => setProtocolDocsOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-            title="View Platform Protocol & Capability Specifications"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span className="hidden sm:inline">Specs</span>
-          </button>
-
-          {/* Camera QR Scanner Button */}
-          <button
-            id="header-scan-tv-qr-btn"
-            onClick={() => setQrScannerOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/20 cursor-pointer shrink-0"
-            title="Scan TV Screen QR Code using Phone Camera"
-          >
-            <Camera className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">Scan TV QR</span>
-          </button>
-
-          {/* Network Scanner Button */}
-          <button
-            id="header-scan-network-btn"
-            onClick={() => setScannerOpen(true)}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-            title="Scan Wi-Fi Network for TVs"
-          >
-            <Search className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="hidden sm:inline">Scan Wi-Fi</span>
-          </button>
+          <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto pb-2.5 pt-0.5">
+            <button onClick={() => setIsOnboarding(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[11px] font-semibold text-indigo-200 transition hover:bg-indigo-500/20">
+              <Sparkles className="h-3.5 w-3.5" /> Get Started
+            </button>
+            <button onClick={() => setQrScannerOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Camera className="h-3.5 w-3.5 text-cyan-400" /> TV QR
+            </button>
+            <button onClick={() => setCompatibilityCenterOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/10">
+              <ShieldCheck className="h-3.5 w-3.5" /> Compatibility
+            </button>
+            <button onClick={() => setIrBlasterOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Radio className="h-3.5 w-3.5 text-amber-400" /> IR Blaster
+            </button>
+            <button onClick={() => setVoiceRemoteOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Activity className="h-3.5 w-3.5 text-violet-400" /> Voice
+            </button>
+            <button onClick={() => setScenesOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Layers className="h-3.5 w-3.5 text-cyan-400" /> Scenes
+            </button>
+            <button onClick={() => setDiagnosticsOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Activity className="h-3.5 w-3.5 text-emerald-400" /> Diagnostics
+            </button>
+            <button onClick={() => setButtonMapperOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <Sliders className="h-3.5 w-3.5 text-indigo-400" /> Customize
+            </button>
+            <button onClick={() => setProtocolDocsOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              <BookOpen className="h-3.5 w-3.5 text-blue-400" /> Protocols
+            </button>
+            <button onClick={() => setCloudSyncOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
+              {firebaseUser ? <CloudCheck className="h-3.5 w-3.5 text-emerald-400" /> : <Cloud className="h-3.5 w-3.5 text-indigo-400" />} Cloud Sync
+            </button>
+            <button onClick={() => setDownloadApkOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/10">
+              <Download className="h-3.5 w-3.5" /> APK Release
+            </button>
+            <div className="ml-auto flex shrink-0 items-center rounded-xl border border-zinc-800 bg-zinc-900 p-1">
+              {([["mobile", Smartphone, "Phone"], ["tv", Monitor, "TV"], ["dual", Columns, "Dual"]] as const).map(([mode, Icon, label]) => (
+                <button key={mode} onClick={() => setViewMode(mode)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition ${viewMode === mode ? "bg-white text-zinc-950" : "text-zinc-400 hover:text-white"}`} title={`Switch to ${label} view`}>
+                  <Icon className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </header>
 
