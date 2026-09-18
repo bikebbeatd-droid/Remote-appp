@@ -2,8 +2,75 @@ import { TvDevice } from "../core/types";
 import { DEFAULT_DEVICES } from "../core/constants";
 import { TokenVault } from "../pairing/tokenVault";
 
+interface NativeAndroidTvBridge {
+  isAvailable?: () => boolean;
+  startAndroidTvDiscovery?: () => boolean;
+  stopAndroidTvDiscovery?: () => void;
+  getAndroidTvDiscoveredDevices?: () => string;
+}
+
+function getNativeAndroidTvBridge(): NativeAndroidTvBridge | null {
+  try {
+    const bridge = (globalThis as any).AndroidRemoteBridge as NativeAndroidTvBridge | undefined;
+    if (!bridge) return null;
+    if (typeof bridge.isAvailable === "function" && !bridge.isAvailable()) return null;
+    return bridge;
+  } catch {
+    return null;
+  }
+}
+
+
 export class DiscoveryService {
+  static async scanNativeAndroidTv(timeoutMs = 5000): Promise<TvDevice[]> {
+    const bridge = getNativeAndroidTvBridge();
+    if (!bridge?.startAndroidTvDiscovery || !bridge.getAndroidTvDiscoveredDevices) return [];
+
+    try {
+      if (!bridge.startAndroidTvDiscovery()) return [];
+      await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+      const raw = bridge.getAndroidTvDiscoveredDevices();
+      bridge.stopAndroidTvDiscovery?.();
+      const found = JSON.parse(raw || "[]");
+      if (!Array.isArray(found)) return [];
+
+      return found
+        .filter((dev: any) => typeof dev?.host === "string" && dev.host.length > 0)
+        .map((dev: any): TvDevice => {
+          const id = `androidtv-${dev.host}`;
+          const storedToken = TokenVault.getToken(id);
+          return {
+            id,
+            name: dev.name || "Android TV / Google TV",
+            model: dev.model || "Android TV / Google TV",
+            brand: dev.brand,
+            manufacturer: dev.manufacturer,
+            platform: "android_tv",
+            ip: dev.host,
+            port: Number(dev.port) || 6467,
+            protocol: "Android TV Remote Service v2",
+            requiresPairing: !storedToken,
+            isPaired: !!storedToken,
+            isOnline: true,
+            token: storedToken || undefined,
+            capabilities: {
+              power: "SUPPORTED", navigation: "SUPPORTED", volume: "SUPPORTED",
+              media: "SUPPORTED", keyboard: "SUPPORTED", touchpad: "UNSUPPORTED",
+              apps: "SUPPORTED", input: "SUPPORTED", voice: "DEVICE_DEPENDENT",
+              channels: "SUPPORTED", ir: "UNSUPPORTED", bluetooth: "DEVICE_DEPENDENT",
+              wifi: "SUPPORTED"
+            },
+            lastSeen: Date.now()
+          };
+        });
+    } catch {
+      try { bridge.stopAndroidTvDiscovery?.(); } catch {}
+      return [];
+    }
+  }
+
   static async scanNetwork(): Promise<TvDevice[]> {
+    const nativeAndroidTv = await this.scanNativeAndroidTv();
     try {
       const res = await fetch("/api/devices");
       if (!res.ok) throw new Error("Failed to scan devices");
@@ -19,10 +86,17 @@ export class DiscoveryService {
         };
       });
 
-      return devices;
+      const merged = new Map<string, TvDevice>();
+      for (const device of nativeAndroidTv) merged.set(device.id, device);
+      for (const device of devices) {
+        const existing = Array.from(merged.values()).find((d) => d.ip === device.ip && d.platform === device.platform);
+        if (existing) merged.set(existing.id, { ...existing, ...device, capabilities: existing.capabilities });
+        else merged.set(device.id, device);
+      }
+      return Array.from(merged.values());
     } catch {
-      // Return empty array when network scan finds no active devices
-      return [];
+      // Native Android TV discovery still works when the optional backend scan is unavailable.
+      return nativeAndroidTv;
     }
   }
 
