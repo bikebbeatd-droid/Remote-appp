@@ -1,32 +1,69 @@
 /**
- * Real Consumer Infrared (IR) Hardware Detection & Bridge Manager
- * 
- * Interacts with physical ConsumerIrManager (Android Termux / WebUSB / Native IR bridge).
- * Strictly detects hardware presence; NEVER fakes or simulates IR transmission if no emitter is found.
+ * Real Consumer Infrared (IR) Hardware Detection & Bridge Manager.
+ *
+ * Android APKs use the injected AndroidRemoteBridge directly so IR control
+ * does not depend on an optional local HTTP server. Browser/Termux mode keeps
+ * the HTTP fallback. No IR hardware is ever simulated.
  */
 
 export interface IrHardwareStatus {
   hasEmitter: boolean;
-  hasReceiver: boolean; // For IR Learning
+  hasReceiver: boolean;
   carrierFrequencies?: Array<{ minFrequency: number; maxFrequency: number }>;
   bridgeSource?: "TERMUX_CONSUMER_IR" | "WEB_USB_TRANSCEIVER" | "NATIVE_ANDROID" | "NONE";
   statusMessage: string;
 }
 
+interface NativeIrBridge {
+  hasIrEmitter?: () => boolean;
+  transmitIr?: (carrierFrequency: number, patternCsv: string) => boolean;
+}
+
+function getNativeIrBridge(): NativeIrBridge | null {
+  if (typeof window === "undefined") return null;
+  const bridge = (window as any).AndroidRemoteBridge;
+  if (!bridge || typeof bridge.hasIrEmitter !== "function" || typeof bridge.transmitIr !== "function") {
+    return null;
+  }
+  return bridge as NativeIrBridge;
+}
+
 export class IrHardwareManager {
   private static cachedStatus: IrHardwareStatus | null = null;
 
-  /**
-   * Probes the runtime environment for physical IR emitter hardware
-   */
   static async checkHardware(): Promise<IrHardwareStatus> {
     if (this.cachedStatus) return this.cachedStatus;
 
+    // Prefer the real Android ConsumerIrManager bridge in the APK.
+    const nativeBridge = getNativeIrBridge();
+    if (nativeBridge) {
+      try {
+        const hasEmitter = Boolean(nativeBridge.hasIrEmitter?.());
+        this.cachedStatus = {
+          hasEmitter,
+          hasReceiver: false,
+          carrierFrequencies: hasEmitter
+            ? [{ minFrequency: 30000, maxFrequency: 60000 }]
+            : undefined,
+          bridgeSource: "NATIVE_ANDROID",
+          statusMessage: hasEmitter
+            ? "Built-in Android IR blaster detected and ready."
+            : "This Android device does not report a built-in IR blaster."
+        };
+        return this.cachedStatus;
+      } catch {
+        // Fall through to the local HTTP bridge.
+      }
+    }
+
+    // Browser/Termux fallback.
     try {
-      // 1. Probe local Termux backend ConsumerIR bridge if present
       const res = await fetch("/api/hardware/ir", {
         method: "GET",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(2500)
+          : undefined
       });
 
       if (res.ok) {
@@ -37,64 +74,93 @@ export class IrHardwareManager {
           carrierFrequencies: data.carrierFrequencies || [{ minFrequency: 30000, maxFrequency: 60000 }],
           bridgeSource: data.bridgeSource || "TERMUX_CONSUMER_IR",
           statusMessage: data.hasEmitter
-            ? "Physical IR Blaster detected and ready via local Android hardware bridge."
-            : "IR hardware not available on this phone."
+            ? "Physical IR blaster detected through the local hardware bridge."
+            : "IR hardware is not available on this device."
         };
         return this.cachedStatus;
       }
     } catch {
-      // Offline / no local hardware bridge running
+      // No local HTTP bridge; report the actual hardware state below.
     }
 
-    // Default when running in standard web browser without IR emitter
     this.cachedStatus = {
       hasEmitter: false,
       hasReceiver: false,
       bridgeSource: "NONE",
-      statusMessage: "IR hardware not available on this phone. A built-in IR blaster or USB transceiver is required for optical IR control."
+      statusMessage:
+        "IR hardware is not available. A built-in IR blaster or compatible external transceiver is required."
     };
-
     return this.cachedStatus;
   }
 
-  /**
-   * Transmits real IR timing pulses. Returns failure immediately if no physical emitter exists.
-   */
-  static async transmitPulse(frequencyKhz: number, pattern: number[]): Promise<{ success: boolean; error?: string }> {
+  static async transmitPulse(
+    frequencyKhz: number,
+    pattern: number[]
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!Number.isFinite(frequencyKhz) || frequencyKhz <= 0) {
+      return { success: false, error: "Invalid IR carrier frequency." };
+    }
+    if (!Array.isArray(pattern) || pattern.length === 0 || pattern.length > 1000) {
+      return { success: false, error: "Invalid IR timing pattern." };
+    }
+    if (pattern.some(value => !Number.isFinite(value) || value <= 0 || value > 1000000)) {
+      return { success: false, error: "IR timing pattern contains invalid pulse durations." };
+    }
+
     const status = await this.checkHardware();
     if (!status.hasEmitter) {
       return {
         success: false,
-        error: "IR hardware not available on this phone. Cannot transmit infrared optical pulse."
+        error: "No physical IR emitter is available on this device."
       };
     }
 
+    // Native Android path: call ConsumerIrManager through MainActivity.java.
+    const nativeBridge = getNativeIrBridge();
+    if (nativeBridge?.transmitIr) {
+      try {
+        const ok = Boolean(
+          nativeBridge.transmitIr(
+            Math.round(frequencyKhz * 1000),
+            pattern.map(value => Math.round(value)).join(",")
+          )
+        );
+        return ok
+          ? { success: true }
+          : { success: false, error: "Android IR hardware rejected the transmission." };
+      } catch (err: any) {
+        return { success: false, error: err?.message || "Android IR transmission failed." };
+      }
+    }
+
+    // Browser/Termux fallback.
     try {
       const res = await fetch("/api/hardware/ir/transmit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ frequencyKhz, pattern })
+        body: JSON.stringify({ frequencyKhz, pattern }),
+        signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(5000)
+          : undefined
       });
-
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         return { success: false, error: data.error || "IR pulse transmission failed." };
       }
       return { success: true };
     } catch (err: any) {
-      return { success: false, error: err.message || "Failed to reach IR blaster hardware." };
+      return { success: false, error: err?.message || "Failed to reach the IR hardware bridge." };
     }
   }
 
-  /**
-   * IR Learning mode to capture signal from physical remote
-   */
-  static async captureSignal(timeoutMs = 10000): Promise<{ success: boolean; code?: string; error?: string }> {
+  static async captureSignal(
+    _timeoutMs = 10000
+  ): Promise<{ success: boolean; code?: string; error?: string }> {
     const status = await this.checkHardware();
     if (!status.hasReceiver) {
       return {
         success: false,
-        error: "IR learning receiver hardware is not available on this phone. Learning requires an IR receiver diode."
+        error: "IR learning is not available because this app has no verified IR receiver bridge."
       };
     }
 
@@ -102,15 +168,15 @@ export class IrHardwareManager {
       const res = await fetch("/api/hardware/ir/learn", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timeoutMs })
+        body: JSON.stringify({ timeoutMs: _timeoutMs })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        return { success: false, error: data.error || "IR signal capture timed out." };
+        return { success: false, error: data.error || "IR signal capture failed." };
       }
       return { success: true, code: data.capturedCode };
     } catch (err: any) {
-      return { success: false, error: err.message || "IR learning failed." };
+      return { success: false, error: err?.message || "IR learning failed." };
     }
   }
 
