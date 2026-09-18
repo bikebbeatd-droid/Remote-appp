@@ -1,5 +1,51 @@
 import { DeviceProfile, GlobalSearchFilter } from "./types";
 
+
+/**
+ * Worldwide catalog expansion.
+ * These entries make brands/models discoverable in the library, while keeping
+ * compatibility honest: the generic profile uses IR only when the Android
+ * device exposes a real Consumer IR transmitter and a verified code profile
+ * exists. It does not claim network control for every brand.
+ *
+ * IR databases can be expanded independently as verified code sets are added.
+ */
+const WORLDWIDE_CATALOG_BRANDS = ["Samsung","LG","Sony","TCL","Hisense","Philips","Panasonic","Sharp","Toshiba","Vizio","Xiaomi","Haier","JVC","Sanyo","Hitachi","Mitsubishi","Grundig","Thomson","Blaupunkt","Telefunken","Google TV","Roku","Amazon Fire TV","Insignia","Onn","Element","Westinghouse","Skyworth","Konka","Coocaa","RCA","Magnavox","Emerson","Sceptre","Dynex","Polaroid","Seiki","Curtis","ProScan","Symphonic","Apex","Funai","Sansui","Videocon","Onida","Vu","Micromax","Akai","Olevia","BPL","Croma","Kodak","Realme","OnePlus","Motorola","Nokia","Changhong","Orient","Dawlance","EcoStar","Loewe","Metz","Vestel","Finlux","NordMende","Salora","Dyon","Medion","Hisawa","Luxor","Bush","Goodmans","Alba","Ferguson","Logik","Cello","PEL","Changhong Ruba","Gree","Kenwood","Westpoint","Nobel","Nikai","Lloyd","Oxygen","Mitashi","CloudWalker","Shinco","iFFALCON","Aiwa","Huawei","Honor","FFALCON","Chiq","Kogan","Arcelik","Beko","Saba","Orion","Technika","Maxzen","O General","Super Asia","Crown","Vision","Mi TV","Redmi TV","Sharp Aquos","Sony Bravia","LG Electronics","Samsung Electronics","Philips TV","TCL TV","Hisense TV","Generic Smart TV","Other / Unknown Brand"] as const;
+
+const WORLDWIDE_CATALOG_PROFILES: DeviceProfile[] = WORLDWIDE_CATALOG_BRANDS.map((brand) => ({
+  id: `catalog_${brand.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+  brand,
+  series: "Worldwide / Model Discovery",
+  model: "Search model number for exact remote profile",
+  yearRange: "Various",
+  category: "tv",
+  platform: "ir_universal",
+  protocol: "ir_consumer",
+  defaultPort: 0,
+  discoveryMethod: "IR profile search / compatible network protocol discovery",
+  pairingMethod: "IR_CODE_MATCH",
+  authDescription: "Compatibility is model-dependent. Use a verified IR code set or a verified native network protocol; no network capability is assumed by this catalog entry.",
+  verified: false,
+  supportedInputSources: [],
+  supportedAppDeepLinks: [],
+  defaultCapabilities: {
+    power: "REQUIRES_HARDWARE",
+    navigation: "REQUIRES_HARDWARE",
+    volume: "REQUIRES_HARDWARE",
+    media: "REQUIRES_HARDWARE",
+    keyboard: "UNKNOWN",
+    touchpad: "UNSUPPORTED",
+    apps: "UNKNOWN",
+    input: "REQUIRES_HARDWARE",
+    voice: "UNKNOWN",
+    channels: "REQUIRES_HARDWARE",
+    ir: "REQUIRES_HARDWARE",
+    bluetooth: "DEVICE_DEPENDENT",
+    wifi: "UNKNOWN"
+  },
+  notes: "Catalog entry only. Exact control requires a verified model/profile and the required hardware or native protocol."
+}));
+
 export const GLOBAL_DEVICE_DATABASE: DeviceProfile[] = [
   // ==========================================
   // SAMSUNG (TIZEN OS)
