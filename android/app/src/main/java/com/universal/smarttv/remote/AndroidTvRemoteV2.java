@@ -6,25 +6,19 @@ import android.util.Base64;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
-import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -203,7 +197,7 @@ public final class AndroidTvRemoteV2 {
         }
 
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(2048, new SecureRandom());
+        generator.initialize(2048, new java.security.SecureRandom());
         KeyPair kp = generator.generateKeyPair();
 
         long now = System.currentTimeMillis();
@@ -250,7 +244,7 @@ public final class AndroidTvRemoteV2 {
             public void checkServerTrusted(X509Certificate[] c, String a) {}
         }};
         SSLContext ctx = SSLContext.getInstance("TLS");
-        ctx.init(kmf.getKeyManagers(), trust, new SecureRandom());
+        ctx.init(kmf.getKeyManagers(), trust, new java.security.SecureRandom());
 
         SSLSocket socket = (SSLSocket) ctx.getSocketFactory().createSocket();
         socket.setEnabledProtocols(new String[]{"TLSv1.3", "TLSv1.2"});
@@ -470,7 +464,7 @@ public final class AndroidTvRemoteV2 {
 
     private static String json(boolean success, String message) {
         String m = message == null ? "" : message.replace("\\", "\\\\").replace(""", "\\"");
-        return "{\\"success\\":" + (success ? "true" : "false") + ",\\"message\\":\\"" + m + "\\"}";
+        return "{"success":" + (success ? "true" : "false") + ","message":"" + m + ""}";
     }
 
     private static String safeMessage(Exception e) {
