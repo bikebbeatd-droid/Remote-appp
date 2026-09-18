@@ -112,7 +112,11 @@ export function handleFirestoreError(
 // 3. Test Connection
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    if (!db) {\n      console.warn("Firebase Firestore is not configured; continuing in local-only mode.");\n      return false;\n    }\n    await getDocFromServer(doc(db, "test", "connection"));
+    if (!db) {
+      console.warn("Firebase Firestore is not configured; continuing in local-only mode.");
+      return false;
+    }
+    await getDocFromServer(doc(db, "test", "connection"));
     return true;
   } catch (error) {
     if (
@@ -137,7 +141,10 @@ googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export async function loginWithGoogle(): Promise<User> {
   try {
-    if (!auth) {\n      throw new Error("Cloud account is unavailable because Firebase is not configured.");\n    }\n    const result = await signInWithPopup(auth, googleProvider);
+    if (!auth) {
+      throw new Error("Cloud account is unavailable because Firebase is not configured.");
+    }
+    const result = await signInWithPopup(auth, googleProvider);
     // Sync initial user profile (best-effort)
     if (result.user) {
       try {
