@@ -130,16 +130,16 @@ public class MainActivity extends BridgeActivity {
                 first = false;
                 String name = info.getServiceName() == null ? "Android TV" : info.getServiceName();
                 String host = info.getHost().getHostAddress();
-                json.append("{\\"name\\":\\"").append(jsonEscape(name))
-                    .append("\\",\\"host\\":\\"").append(jsonEscape(host))
-                    .append("\\",\\"port\\":").append(info.getPort())
+                json.append("{\"name\":\"").append(jsonEscape(name))
+                    .append("\",\"host\":\"").append(jsonEscape(host))
+                    .append("\",\"port\":").append(info.getPort())
                     .append('}');
             }
             return json.append(']').toString();
         }
 
         private static String jsonEscape(String value) {
-            return value == null ? "" : value.replace("\\\\", "\\\\\\\\").replace("\\\"", "\\\\\\\"");
+            return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
         }
 
         @JavascriptInterface
