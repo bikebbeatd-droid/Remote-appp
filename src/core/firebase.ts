@@ -91,11 +91,11 @@ export function handleFirestoreError(
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
       providerInfo:
         auth.currentUser?.providerData?.map((provider) => ({
           providerId: provider.providerId,
@@ -112,7 +112,7 @@ export function handleFirestoreError(
 // 3. Test Connection
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, "test", "connection"));
+    if (!db) {\n      console.warn("Firebase Firestore is not configured; continuing in local-only mode.");\n      return false;\n    }\n    await getDocFromServer(doc(db, "test", "connection"));
     return true;
   } catch (error) {
     if (
@@ -137,7 +137,7 @@ googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export async function loginWithGoogle(): Promise<User> {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    if (!auth) {\n      throw new Error("Cloud account is unavailable because Firebase is not configured.");\n    }\n    const result = await signInWithPopup(auth, googleProvider);
     // Sync initial user profile (best-effort)
     if (result.user) {
       try {
