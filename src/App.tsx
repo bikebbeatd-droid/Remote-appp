@@ -233,35 +233,61 @@ export default function App() {
     }
   }, []);
 
-  // 2. Real-time WebSocket connection to TV Receiver companion
+  // 2. Optional companion WebSocket.
+  // Do not let a missing/failed companion server prevent the remote UI from rendering.
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    let disposed = false;
+    let ws: WebSocket | null = null;
+
     try {
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${wsProtocol}//${window.location.host}/ws/remote`;
-      const ws = new WebSocket(wsUrl);
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        if (!disposed) socketRef.current = ws;
+      };
 
       ws.onmessage = (event) => {
+        if (disposed) return;
         try {
           const data = JSON.parse(event.data);
           if (data.type === "COMMAND_EXECUTED") {
             setLastCommand({
               command: data.command,
               value: data.value,
-              timestamp: new Date().toLocaleTimeString()
+              timestamp: new Date().toLocaleTimeString(),
             });
           } else if (data.type === "PAIRING_STARTED") {
             setPairingPin(data.pin);
           } else if (data.type === "PAIRING_SUCCESS") {
             setPairingPin(null);
           }
-        } catch {}
+        } catch (error) {
+          console.warn("Ignoring malformed companion WebSocket message:", error);
+        }
       };
 
-      socketRef.current = ws;
-      return () => {
-        ws.close();
+      ws.onerror = () => {
+        // Companion mode is optional; direct/native TV control remains available.
+        if (socketRef.current === ws) socketRef.current = null;
       };
-    } catch {}
+
+      ws.onclose = () => {
+        if (socketRef.current === ws) socketRef.current = null;
+      };
+    } catch (error) {
+      console.warn("Companion WebSocket unavailable; continuing without it:", error);
+    }
+
+    return () => {
+      disposed = true;
+      if (socketRef.current === ws) socketRef.current = null;
+      try {
+        ws?.close();
+      } catch {}
+    };
   }, []);
 
   // Android Hardware Back Button Handling via Capacitor App
