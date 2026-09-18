@@ -67,7 +67,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-power"
           onClick={() => handlePress("POWER")}
           disabled={isPowerDisabled}
-          className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-950/40 border border-rose-600/40 hover:bg-rose-900/60 active:scale-95 disabled:opacity-30 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-950/30 transition-all cursor-pointer shrink-0"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-950/40 border border-rose-600/40 hover:bg-rose-900/60 active:scale-95 disabled:opacity-30 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-950/30 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 shrink-0"
           title="Power Toggle"
         >
           <Power className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -103,7 +103,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-vol-up"
             onClick={() => handlePress("VOLUME_UP")}
             disabled={isVolDisabled}
-            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer font-bold text-lg"
+            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 font-bold text-lg"
             title="Volume +"
           >
             +
@@ -116,7 +116,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-vol-down"
             onClick={() => handlePress("VOLUME_DOWN")}
             disabled={isVolDisabled}
-            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer font-bold text-lg"
+            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 font-bold text-lg"
             title="Volume -"
           >
             −
@@ -129,7 +129,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-home"
             onClick={() => handlePress("HOME")}
             disabled={isNavDisabled}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/30 hover:bg-indigo-900/70 active:scale-95 disabled:opacity-30 flex items-center justify-center text-indigo-300 shadow-md transition-all cursor-pointer"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/30 hover:bg-indigo-900/70 active:scale-95 disabled:opacity-30 flex items-center justify-center text-indigo-300 shadow-md transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             title="Home Screen"
           >
             <Home className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -138,7 +138,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-back"
             onClick={() => handlePress("BACK")}
             disabled={isNavDisabled}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 shadow-md transition-all cursor-pointer"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 shadow-md transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             title="Back / Return"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -151,7 +151,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-ch-up"
             onClick={() => handlePress("CHANNEL_UP")}
             disabled={!device || device.capabilities.channels === "UNSUPPORTED"}
-            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer"
+            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             title="Channel Up"
           >
             <ChevronUp className="w-5 h-5" />
@@ -163,7 +163,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
             id="remote-btn-ch-down"
             onClick={() => handlePress("CHANNEL_DOWN")}
             disabled={!device || device.capabilities.channels === "UNSUPPORTED"}
-            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer"
+            className="w-full h-12 sm:h-14 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             title="Channel Down"
           >
             <ChevronDown className="w-5 h-5" />
@@ -178,7 +178,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-up"
           onClick={() => handlePress("UP")}
           disabled={isNavDisabled}
-          className="absolute top-1 sm:top-2 w-24 sm:w-28 h-16 sm:h-18 rounded-t-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer"
+          className="absolute top-1 sm:top-2 w-24 sm:w-28 h-16 sm:h-18 rounded-t-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Up"
         >
           <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7 mb-2 sm:mb-3 text-zinc-200" />
@@ -189,7 +189,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-down"
           onClick={() => handlePress("DOWN")}
           disabled={isNavDisabled}
-          className="absolute bottom-1 sm:bottom-2 w-24 sm:w-28 h-16 sm:h-18 rounded-b-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer"
+          className="absolute bottom-1 sm:bottom-2 w-24 sm:w-28 h-16 sm:h-18 rounded-b-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Down"
         >
           <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7 mt-2 sm:mt-3 text-zinc-200" />
@@ -200,7 +200,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-left"
           onClick={() => handlePress("LEFT")}
           disabled={isNavDisabled}
-          className="absolute left-1 sm:left-2 w-16 sm:w-18 h-24 sm:h-28 rounded-l-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer"
+          className="absolute left-1 sm:left-2 w-16 sm:w-18 h-24 sm:h-28 rounded-l-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Left"
         >
           <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7 mr-2 sm:mr-3 text-zinc-200" />
@@ -211,7 +211,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-right"
           onClick={() => handlePress("RIGHT")}
           disabled={isNavDisabled}
-          className="absolute right-1 sm:right-2 w-16 sm:w-18 h-24 sm:h-28 rounded-r-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer"
+          className="absolute right-1 sm:right-2 w-16 sm:w-18 h-24 sm:h-28 rounded-r-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Right"
         >
           <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7 ml-2 sm:ml-3 text-zinc-200" />
@@ -222,7 +222,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-ok"
           onClick={() => handlePress("OK")}
           disabled={isNavDisabled}
-          className="w-18 h-18 sm:w-22 sm:h-22 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-90 active:bg-indigo-700 disabled:opacity-30 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/30 border-2 border-indigo-400/30 transition-all cursor-pointer z-10"
+          className="w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-90 active:bg-indigo-700 disabled:opacity-30 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/30 border-2 border-indigo-400/30 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 z-10"
           title="OK / Select"
         >
           OK
