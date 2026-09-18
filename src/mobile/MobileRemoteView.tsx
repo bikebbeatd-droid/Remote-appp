@@ -102,7 +102,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-4 gap-2">
             <div className="rounded-2xl border border-white/5 bg-white/[0.035] px-2.5 py-2">
               <Wifi className="h-3.5 w-3.5 text-cyan-300" />
               <p className="mt-1 text-[9px] uppercase tracking-wider text-zinc-500">Link</p>
