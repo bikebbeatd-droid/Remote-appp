@@ -40,11 +40,11 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: 3. Set up Java JDK 17
+      - name: 3. Set up Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: 4. Verify Android build toolchain
@@ -55,7 +55,7 @@ jobs:
           test -f android/gradle/wrapper/gradle-wrapper.properties
           grep -q 'gradle-8.14.3-all.zip' android/gradle/wrapper/gradle-wrapper.properties
           grep -q "com.android.tools.build:gradle:8.13.0" android/build.gradle
-          echo "Verified Android project toolchain: Java 17, AGP 8.13.0, Gradle 8.14.3"
+          echo "Verified Android project toolchain: Java 21, AGP 8.13.0, Gradle 8.14.3"
 
       - name: 5. Set up Android SDK
         uses: android-actions/setup-android@v3
