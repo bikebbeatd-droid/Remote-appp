@@ -178,7 +178,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-up"
           onClick={() => handlePress("UP")}
           disabled={isNavDisabled}
-          className="absolute top-1 sm:top-2 w-24 sm:w-28 h-16 sm:h-18 rounded-t-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="absolute top-1 sm:top-2 w-24 sm:w-28 h-16 sm:h-[4.5rem] rounded-t-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Up"
         >
           <ChevronUp className="w-6 h-6 sm:w-7 sm:h-7 mb-2 sm:mb-3 text-zinc-200" />
@@ -189,7 +189,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-down"
           onClick={() => handlePress("DOWN")}
           disabled={isNavDisabled}
-          className="absolute bottom-1 sm:bottom-2 w-24 sm:w-28 h-16 sm:h-18 rounded-b-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="absolute bottom-1 sm:bottom-2 w-24 sm:w-28 h-16 sm:h-[4.5rem] rounded-b-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Down"
         >
           <ChevronDown className="w-6 h-6 sm:w-7 sm:h-7 mt-2 sm:mt-3 text-zinc-200" />
@@ -200,7 +200,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-left"
           onClick={() => handlePress("LEFT")}
           disabled={isNavDisabled}
-          className="absolute left-1 sm:left-2 w-16 sm:w-18 h-24 sm:h-28 rounded-l-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="absolute left-1 sm:left-2 w-16 sm:w-[4.5rem] h-24 sm:h-28 rounded-l-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Left"
         >
           <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7 mr-2 sm:mr-3 text-zinc-200" />
@@ -211,7 +211,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-dpad-right"
           onClick={() => handlePress("RIGHT")}
           disabled={isNavDisabled}
-          className="absolute right-1 sm:right-2 w-16 sm:w-18 h-24 sm:h-28 rounded-r-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="absolute right-1 sm:right-2 w-16 sm:w-[4.5rem] h-24 sm:h-28 rounded-r-full hover:bg-zinc-800/90 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           title="Navigate Right"
         >
           <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7 ml-2 sm:ml-3 text-zinc-200" />
@@ -222,7 +222,7 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
           id="remote-btn-ok"
           onClick={() => handlePress("OK")}
           disabled={isNavDisabled}
-          className="w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-90 active:bg-indigo-700 disabled:opacity-30 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/30 border-2 border-indigo-400/30 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 z-10"
+          className="w-20 h-20 sm:w-[5.5rem] sm:h-[5.5rem] rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-90 active:bg-indigo-700 disabled:opacity-30 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-600/30 border-2 border-indigo-400/30 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 z-10"
           title="OK / Select"
         >
           OK
