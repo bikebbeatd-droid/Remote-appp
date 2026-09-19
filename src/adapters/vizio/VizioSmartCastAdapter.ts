@@ -6,20 +6,12 @@ export class VizioSmartCastAdapter implements TvAdapter {
   readonly platform = "vizio_smartcast";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
+    // Direct SmartCast transport is not implemented in this client yet.
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
-      voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN", media: "UNKNOWN",
+      keyboard: "UNKNOWN", touchpad: "UNSUPPORTED", apps: "UNKNOWN", input: "UNKNOWN",
+      voice: "UNSUPPORTED", channels: "UNKNOWN", ir: "UNKNOWN",
+      bluetooth: "UNKNOWN", wifi: "UNKNOWN"
     };
   }
 
@@ -57,57 +49,14 @@ export class VizioSmartCastAdapter implements TvAdapter {
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    const token = TokenVault.getToken(device.id) || device.token;
-
-    try {
-      const vizioKey = this.mapVizioKey(command);
-
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          vizioKey,
-          value,
-          token,
-          protocol: "vizio_smartcast_https"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Vizio SmartCast command delivery failed."
-        };
-      }
-
-      return {
-        success: true,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "vizio_smartcast_https"
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Vizio SmartCast at ${device.ip}:7345.`
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      error: "Vizio SmartCast direct transport is not yet verified in this build; backend-dependent control is disabled."
+    };
   }
 
   async authenticate(
@@ -143,17 +92,9 @@ export class VizioSmartCastAdapter implements TvAdapter {
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 7345, protocol: "vizio_smartcast_https" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+    return {
+      online: false,
+      error: "Vizio SmartCast protocol verification requires a supported direct/native transport."
+    };
   }
 }
