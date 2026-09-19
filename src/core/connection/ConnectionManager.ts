@@ -81,6 +81,23 @@ export class ConnectionManager {
   }
 
   async connect(device: TvDevice): Promise<boolean> {
+    // Guard direct callers too: a pairing-required device must never be
+    // probed/marked CONNECTED before pairing is complete.
+    if (device.requiresPairing && !device.isPaired) {
+      this.activeDevice = device;
+      this.stopHeartbeat();
+      this.setState("PAIRING");
+      return false;
+    }
+
+    // Never start a connection attempt for devices without a verified platform.
+    if (!device.platform || device.platform === "generic") {
+      this.activeDevice = device;
+      this.stopHeartbeat();
+      this.setState("DISCONNECTED", { error: "No verified control protocol for this device." });
+      return false;
+    }
+
     const session = ++this.sessionVersion;
     this.activeDevice = device;
     this.setState("CONNECTING");
