@@ -18,6 +18,8 @@ export type QueueEventListener = (event: {
 
 export class CommandQueue {
   private deviceQueues: Map<string, QueuedCommand[]> = new Map();
+  // Serialize commands per TV so rapid taps cannot create concurrent protocol requests.
+  private deviceTails: Map<string, Promise<void>> = new Map();
   private lastExecutedByDevice: Map<string, { command: RemoteCommandType; timestamp: number }> = new Map();
   private listeners: Set<QueueEventListener> = new Set();
   private maxHistory = 100;
@@ -124,67 +126,63 @@ export class CommandQueue {
     this.deviceQueues.set(device.id, queueForDev);
     this.emit("ENQUEUED", commandItem);
 
-    // Run execution with abort controller and timeout guard
-    commandItem.status = "executing";
-    this.emit("STARTED", commandItem);
-    const startTime = performance.now();
-    const abortController = new AbortController();
+    // Serialize execution per TV. Different TVs may still execute independently.
+    const previous = this.deviceTails.get(device.id) || Promise.resolve();
+    let release!: () => void;
+    const turn = new Promise<void>(resolve => { release = resolve; });
+    const tail = previous.catch(() => {}).then(() => turn);
+    this.deviceTails.set(device.id, tail);
 
-    try {
-      const timeoutPromise = new Promise<CommandExecutionResult>((_, reject) => {
-        const timer = setTimeout(() => {
-          abortController.abort();
-          reject(new Error(`Command timeout: TV failed to respond within ${this.TIMEOUT_MS}ms`));
-        }, this.TIMEOUT_MS);
-        if (typeof timer.unref === "function") timer.unref();
-      });
+    const run = async (): Promise<CommandExecutionResult> => {
+      commandItem.status = "executing";
+      this.emit("STARTED", commandItem);
+      const startTime = performance.now();
+      const abortController = new AbortController();
 
-      const result = await Promise.race([executor(abortController.signal), timeoutPromise]);
-      const latencyMs = Math.round(performance.now() - startTime);
+      try {
+        const timeoutPromise = new Promise<CommandExecutionResult>((_, reject) => {
+          const timer = setTimeout(() => {
+            abortController.abort();
+            reject(new Error("Command timeout: TV failed to respond within " + this.TIMEOUT_MS + "ms"));
+          }, this.TIMEOUT_MS);
+          if (typeof timer.unref === "function") timer.unref();
+        });
 
-      commandItem.latencyMs = latencyMs;
-      commandItem.status = result.success ? "completed" : "failed";
-      commandItem.error = result.error;
+        const result = await Promise.race([executor(abortController.signal), timeoutPromise]);
+        const latencyMs = Math.round(performance.now() - startTime);
 
-      this.lastExecutedByDevice.set(device.id, { command, timestamp: Date.now() });
+        commandItem.latencyMs = latencyMs;
+        commandItem.status = result.success ? "completed" : "failed";
+        commandItem.error = result.error;
 
-      this.recordHistory(commandItem);
-      this.emit(result.success ? "COMPLETED" : "FAILED", commandItem);
-
-      return {
-        ...result,
-        latencyMs
-      };
-    } catch (err: any) {
-      const latencyMs = Math.round(performance.now() - startTime);
-      commandItem.latencyMs = latencyMs;
-      commandItem.status = "failed";
-      commandItem.error = err.message || "Network execution error";
-
-      this.recordHistory(commandItem);
-      this.emit("FAILED", commandItem);
-
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        error: err.message || "Command transmission failed"
-      };
-    } finally {
-      const currentQueue = this.deviceQueues.get(device.id);
-      if (currentQueue) {
-        const filtered = currentQueue.filter(c => c.id !== commandItem.id);
-        if (filtered.length > 0) {
-          this.deviceQueues.set(device.id, filtered);
-        } else {
-          this.deviceQueues.delete(device.id);
+        if (result.success) {
+          this.lastExecutedByDevice.set(device.id, { command, timestamp: Date.now() });
         }
-      }
-    }
-  }
 
+        this.recordHistory(commandItem);
+        this.emit(result.success ? "COMPLETED" : "FAILED", commandItem);
+        return { ...result, latencyMs };
+      } catch (err: any) {
+        const latencyMs = Math.round(performance.now() - startTime);
+        commandItem.latencyMs = latencyMs;
+        commandItem.status = "failed";
+        commandItem.error = err.message || "Network execution error";
+        this.recordHistory(commandItem);
+        this.emit("FAILED", commandItem);
+        return { success: false, command, value, timestamp: Date.now(), latencyMs, error: err.message || "Command transmission failed" };
+      } finally {
+        const currentQueue = this.deviceQueues.get(device.id);
+        if (currentQueue) {
+          const filtered = currentQueue.filter(c => c.id !== commandItem.id);
+          if (filtered.length > 0) this.deviceQueues.set(device.id, filtered);
+          else this.deviceQueues.delete(device.id);
+        }
+        release();
+        if (this.deviceTails.get(device.id) === tail) this.deviceTails.delete(device.id);
+      }
+    };
+
+    return await run();
   private recordHistory(item: QueuedCommand) {
     this.history.unshift(item);
     if (this.history.length > this.maxHistory) {
