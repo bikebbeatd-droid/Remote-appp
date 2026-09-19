@@ -320,28 +320,28 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
         <button
           id="remote-btn-red"
           onClick={() => handlePress("COLOR_RED")}
-          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
           className="flex-1 h-3.5 rounded-full bg-rose-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Red"
         />
         <button
           id="remote-btn-green"
           onClick={() => handlePress("COLOR_GREEN")}
-          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
           className="flex-1 h-3.5 rounded-full bg-emerald-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Green"
         />
         <button
           id="remote-btn-yellow"
           onClick={() => handlePress("COLOR_YELLOW")}
-          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
           className="flex-1 h-3.5 rounded-full bg-amber-400 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Yellow"
         />
         <button
           id="remote-btn-blue"
           onClick={() => handlePress("COLOR_BLUE")}
-          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
           className="flex-1 h-3.5 rounded-full bg-sky-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Blue"
         />
