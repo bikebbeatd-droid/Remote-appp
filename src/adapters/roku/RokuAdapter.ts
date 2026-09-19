@@ -149,7 +149,7 @@ export class RokuAdapter implements TvAdapter {
   }
 
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
-    return { success: true, token: "roku_ecp_open" };
+    return { success: true };
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
