@@ -91,8 +91,7 @@ export class IrUniversalAdapter implements TvAdapter {
   ): Promise<{ success: boolean; token?: string; error?: string }> {
     // IR is open optical broadcast; no pairing handshake
     return {
-      success: true,
-      token: "ir_broadcast_ready"
+      success: true
     };
   }
 
