@@ -42,7 +42,10 @@ export class TransportRegistry {
       return this.transports.get(device.platform)!;
     }
 
-    // Default to Android TV Receiver transport
-    return this.transports.get("android_tv_receiver")!;
+    // Never silently route an unknown device to Android TV.
+    // An incorrect fallback can send commands to the wrong protocol.
+    throw new Error(
+      `No verified transport for device platform "${device.platform || "unknown"}" and protocol "${device.protocol || "unknown"}".`
+    );
   }
 }
