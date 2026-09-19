@@ -52,6 +52,11 @@ export class AdapterRegistry {
     this.adapters.set("generic", generic);
   }
 
+  static hasAdapter(platform: string): boolean {
+    this.initialize();
+    return this.adapters.has(platform);
+  }
+
   static getAdapter(platform: TvPlatform | string): TvAdapter {
     this.initialize();
     return this.adapters.get(platform) || this.adapters.get("generic")!;
