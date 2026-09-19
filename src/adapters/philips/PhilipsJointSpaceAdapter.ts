@@ -5,20 +5,22 @@ export class PhilipsJointSpaceAdapter implements TvAdapter {
   readonly platform = "philips";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
+    // The current app has no verified native/direct JointSpace transport for Philips.
+    // Do not advertise backend-dependent commands as supported.
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
+      power: "UNKNOWN",
+      navigation: "UNKNOWN",
+      volume: "UNKNOWN",
+      media: "UNKNOWN",
+      keyboard: "UNKNOWN",
       touchpad: "UNSUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
+      apps: "UNKNOWN",
+      input: "UNKNOWN",
       voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      channels: "UNKNOWN",
+      ir: "UNKNOWN",
+      bluetooth: "UNKNOWN",
+      wifi: "UNKNOWN"
     };
   }
 
@@ -72,54 +74,14 @@ export class PhilipsJointSpaceAdapter implements TvAdapter {
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    const key = this.mapJointSpaceKey(command);
-
-    try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          mappedKey: key,
-          value,
-          protocol: "philips_jointspace_rest"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Philips JointSpace command failed."
-        };
-      }
-
-      return {
-        success: true,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "philips_jointspace_rest"
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Philips JointSpace at ${device.ip}:1925.`
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      error: "Philips JointSpace direct transport is not yet verified in this build; backend-dependent control is disabled."
+    };
   }
 
   async authenticate(
@@ -133,17 +95,9 @@ export class PhilipsJointSpaceAdapter implements TvAdapter {
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 1925, protocol: "philips_jointspace_rest" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+    return {
+      online: false,
+      error: "Philips JointSpace protocol verification requires a supported direct/native transport."
+    };
   }
 }
