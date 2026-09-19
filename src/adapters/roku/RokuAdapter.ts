@@ -11,16 +11,16 @@ export class RokuAdapter implements TvAdapter {
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
     return {
-      power: "SUPPORTED",
+      power: "DEVICE_DEPENDENT",
       navigation: "SUPPORTED",
-      volume: "SUPPORTED",
+      volume: "DEVICE_DEPENDENT",
       media: "SUPPORTED",
       keyboard: "SUPPORTED",
       touchpad: "UNSUPPORTED",
       apps: "SUPPORTED",
-      input: "SUPPORTED",
+      input: "DEVICE_DEPENDENT",
       voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
+      channels: "DEVICE_DEPENDENT",
       ir: "UNSUPPORTED",
       bluetooth: "UNSUPPORTED",
       wifi: "SUPPORTED"
@@ -47,7 +47,7 @@ export class RokuAdapter implements TvAdapter {
       case "FAST_FORWARD": return "Fwd";
       case "PREVIOUS": return "InstantReplay";
       case "NEXT": return "Fwd";
-      case "POWER": return "Power";
+      case "POWER": return "PowerOff";
       case "INPUT": return "InputTuner";
       case "INFO": return "Info";
       case "GUIDE": return "Guide";
