@@ -182,7 +182,6 @@ export class SamsungTizenAdapter implements TvAdapter {
       try { socket.close(); } catch {}
       return {
         success: true,
-        token: "samsung_local_ws"
       };
     } catch (err: any) {
       return {
