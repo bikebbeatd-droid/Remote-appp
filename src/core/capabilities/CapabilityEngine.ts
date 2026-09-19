@@ -109,14 +109,14 @@ export class CapabilityEngine {
         return { allowed: true, status: "SUPPORTED" };
 
       case "keyboard":
-        if (device.capabilities.keyboard === "UNSUPPORTED") {
+        if (device.capabilities.keyboard !== "SUPPORTED") {
           return {
             allowed: false,
             status: "UNSUPPORTED",
             reason: "Keyboard text input is not supported by this TV."
           };
         }
-        return { allowed: true, status: device.capabilities.keyboard };
+        return { allowed: true, status: "SUPPORTED" };
 
       case "voice":
         if (device.capabilities.voice !== "SUPPORTED") {
@@ -139,7 +139,7 @@ export class CapabilityEngine {
         return { allowed: true, status: "SUPPORTED" };
 
       default:
-        return { allowed: true, status: "SUPPORTED" };
+        return { allowed: false, status: "UNKNOWN", reason: `Remote mode "${mode}" is not explicitly verified for this device.` };
     }
   }
 }
