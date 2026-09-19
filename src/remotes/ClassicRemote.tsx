@@ -315,30 +315,34 @@ export const ClassicRemote: React.FC<ClassicRemoteProps> = ({
         </div>
       </div>
 
-      {/* Color Keys (Red, Green, Yellow, Blue) for TV teletext / interactive services */}
+      {/* Color Keys: only enabled when the verified capability layer allows them */}
       <div className="w-full flex items-center justify-between px-2 gap-2">
         <button
           id="remote-btn-red"
           onClick={() => handlePress("COLOR_RED")}
-          className="flex-1 h-3.5 rounded-full bg-rose-500 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          className="flex-1 h-3.5 rounded-full bg-rose-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Red"
         />
         <button
           id="remote-btn-green"
           onClick={() => handlePress("COLOR_GREEN")}
-          className="flex-1 h-3.5 rounded-full bg-emerald-500 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          className="flex-1 h-3.5 rounded-full bg-emerald-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Green"
         />
         <button
           id="remote-btn-yellow"
           onClick={() => handlePress("COLOR_YELLOW")}
-          className="flex-1 h-3.5 rounded-full bg-amber-400 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          className="flex-1 h-3.5 rounded-full bg-amber-400 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Yellow"
         />
         <button
           id="remote-btn-blue"
           onClick={() => handlePress("COLOR_BLUE")}
-          className="flex-1 h-3.5 rounded-full bg-sky-500 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+          disabled=disabled={!device || device.capabilities.navigation === "UNSUPPORTED"}
+          className="flex-1 h-3.5 rounded-full bg-sky-500 hover:opacity-90 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
           title="Blue"
         />
       </div>
