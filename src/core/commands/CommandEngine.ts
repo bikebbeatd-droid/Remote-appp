@@ -41,27 +41,10 @@ export class CommandEngine {
     }
 
     // 3. Resolve Device Adapter
-    // Never let the GenericAdapter become a silent network fallback.
-    // A device must have a known platform adapter (or the explicit IR/companion path)
-    // before any command can reach the transport layer.
-    const executablePlatforms = new Set([
-      "android_tv",
-      "google_tv",
-      "roku",
-      "tizen",
-      "webos",
-      "sony_bravia",
-      "fire_tv",
-      "panasonic_viera",
-      "philips",
-      "vizio_smartcast",
-      "apple_tv",
-      "hisense_vidaa",
-      "ir_universal",
-      "companion_web_receiver"
-    ]);
-
-    if (!device.platform || !executablePlatforms.has(device.platform)) {
+    // Keep command execution aligned with the actual adapter registry so a
+    // platform cannot accidentally become executable just because it was added
+    // to a second, stale allowlist.
+    if (!device.platform || !AdapterRegistry.hasAdapter(device.platform)) {
       return {
         success: false,
         command,
