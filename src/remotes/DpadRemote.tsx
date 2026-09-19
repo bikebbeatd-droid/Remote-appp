@@ -45,7 +45,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-btn-back"
           onClick={() => handlePress("BACK")}
-          className="py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:scale-95 text-xs font-medium text-zinc-300 rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md"
+          disabled={!device}
+          className="py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-xs font-medium text-zinc-300 rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
@@ -53,7 +54,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-btn-home"
           onClick={() => handlePress("HOME")}
-          className="py-3 bg-indigo-950/50 border border-indigo-500/40 hover:bg-indigo-900/60 active:scale-95 text-xs font-medium text-indigo-300 rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md"
+          disabled={!device}
+          className="py-3 bg-indigo-950/50 border border-indigo-500/40 hover:bg-indigo-900/60 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-xs font-medium text-indigo-300 rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md"
         >
           <Home className="w-4 h-4" />
           <span>Home</span>
@@ -61,6 +63,7 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-btn-menu"
           onClick={() => handlePress("MENU")}
+          disabled={!device}
           className="py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:scale-95 text-xs font-medium text-zinc-300 rounded-2xl flex items-center justify-center gap-1.5 transition-all shadow-md"
         >
           <Menu className="w-4 h-4" />
@@ -74,7 +77,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-cross-up"
           onClick={() => handlePress("UP")}
-          className="absolute top-0 w-20 h-24 bg-zinc-900 border border-zinc-800 rounded-t-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 flex items-center justify-center text-zinc-200 shadow-lg transition-all"
+          disabled={!device}
+          className="absolute top-0 w-20 h-24 bg-zinc-900 border border-zinc-800 rounded-t-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-200 shadow-lg transition-all"
           title="Up"
         >
           <ChevronUp className="w-8 h-8 -mt-4" />
@@ -84,7 +88,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-cross-down"
           onClick={() => handlePress("DOWN")}
-          className="absolute bottom-0 w-20 h-24 bg-zinc-900 border border-zinc-800 rounded-b-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 flex items-center justify-center text-zinc-200 shadow-lg transition-all"
+          disabled={!device}
+          className="absolute bottom-0 w-20 h-24 bg-zinc-900 border border-zinc-800 rounded-b-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-200 shadow-lg transition-all"
           title="Down"
         >
           <ChevronDown className="w-8 h-8 mt-4" />
@@ -94,7 +99,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-cross-left"
           onClick={() => handlePress("LEFT")}
-          className="absolute left-0 w-24 h-20 bg-zinc-900 border border-zinc-800 rounded-l-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 flex items-center justify-center text-zinc-200 shadow-lg transition-all"
+          disabled={!device}
+          className="absolute left-0 w-24 h-20 bg-zinc-900 border border-zinc-800 rounded-l-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-200 shadow-lg transition-all"
           title="Left"
         >
           <ChevronLeft className="w-8 h-8 -ml-4" />
@@ -104,7 +110,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-cross-right"
           onClick={() => handlePress("RIGHT")}
-          className="absolute right-0 w-24 h-20 bg-zinc-900 border border-zinc-800 rounded-r-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 flex items-center justify-center text-zinc-200 shadow-lg transition-all"
+          disabled={!device}
+          className="absolute right-0 w-24 h-20 bg-zinc-900 border border-zinc-800 rounded-r-3xl hover:bg-zinc-800 active:bg-indigo-600/30 active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-200 shadow-lg transition-all"
           title="Right"
         >
           <ChevronRight className="w-8 h-8 mr-4" />
@@ -114,7 +121,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-cross-center"
           onClick={() => handlePress("OK")}
-          className="w-20 h-20 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-90 text-white font-bold text-lg shadow-xl shadow-indigo-600/30 border-2 border-indigo-400/40 z-10 transition-all"
+          disabled={!device}
+          className="w-20 h-20 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-90 disabled:opacity-30 disabled:pointer-events-none text-white font-bold text-lg shadow-xl shadow-indigo-600/30 border-2 border-indigo-400/40 z-10 transition-all"
           title="OK / Select"
         >
           OK
@@ -126,14 +134,16 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-vol-down"
           onClick={() => handlePress("VOLUME_DOWN")}
-          className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 rounded-xl text-xs font-semibold transition-all"
+          disabled={!device}
+          className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-zinc-200 rounded-xl text-xs font-semibold transition-all"
         >
           VOL −
         </button>
         <button
           id="dpad-mute"
           onClick={() => handlePress("MUTE")}
-          className="p-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-amber-400 rounded-xl transition-all"
+          disabled={!device}
+          className="p-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-amber-400 rounded-xl transition-all"
           title="Mute"
         >
           <VolumeX className="w-4 h-4" />
@@ -141,6 +151,7 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
         <button
           id="dpad-vol-up"
           onClick={() => handlePress("VOLUME_UP")}
+          disabled={!device}
           className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 rounded-xl text-xs font-semibold transition-all"
         >
           VOL +
