@@ -70,6 +70,9 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
   onUnsupportedAttempt
 }) => {
   const connected = connectionState === "CONNECTED";
+  const paired = Boolean(device?.isPaired);
+  const controlLabel = connected ? "Online" : paired ? "Paired" : "Not paired";
+  const linkLabel = connected ? "Live" : device ? "Saved" : "—";
 
   return (
     <main
@@ -106,7 +109,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
             <div className="rounded-2xl border border-white/5 bg-white/[0.035] px-2.5 py-2">
               <Wifi className="h-3.5 w-3.5 text-cyan-300" />
               <p className="mt-1 text-[9px] uppercase tracking-wider text-zinc-500">Link</p>
-              <p className="text-[10px] font-medium text-zinc-200">{device ? "Ready" : "—"}</p>
+              <p className="text-[10px] font-medium text-zinc-200">{linkLabel}</p>
             </div>
             <div className="rounded-2xl border border-white/5 bg-white/[0.035] px-2.5 py-2">
               <Radio className="h-3.5 w-3.5 text-indigo-300" />
@@ -116,7 +119,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
             <div className="rounded-2xl border border-white/5 bg-white/[0.035] px-2.5 py-2">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
               <p className="mt-1 text-[9px] uppercase tracking-wider text-zinc-500">Control</p>
-              <p className="text-[10px] font-medium text-zinc-200">Verified</p>
+              <p className="text-[10px] font-medium text-zinc-200">{controlLabel}</p>
             </div>
           </div>
         </header>
@@ -155,7 +158,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
           className="px-3 pb-4 pt-3"
           aria-live="polite"
         >
-          <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-2 shadow-inner shadow-white/[0.02]">
+          <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-2 shadow-inner shadow-white/[0.02]" role="region" aria-label={`${currentMode} remote controls`}>
             <div className="pointer-events-none absolute -right-16 top-0 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl" />
             <div className="relative">
               {currentMode === "classic" && <ClassicRemote device={device} onSendCommand={onSendCommand} isSending={isSending} onUnsupportedAttempt={onUnsupportedAttempt} />}
@@ -174,7 +177,7 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
         {/* Small activity footer */}
         <footer className="flex items-center justify-center gap-2 border-t border-white/5 px-4 py-2.5 text-[9px] text-zinc-500">
           <Activity className="h-3 w-3" />
-          <span>Commands are sent only through the selected verified transport.</span>
+          <span>{connected ? "Commands use the selected transport." : "Connect a TV to send commands."}</span>
         </footer>
       </div>
     </main>
