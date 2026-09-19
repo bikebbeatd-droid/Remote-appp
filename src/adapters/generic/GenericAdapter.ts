@@ -7,19 +7,19 @@ export class FireTvAdapter implements TvAdapter {
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
-      voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "SUPPORTED",
-      wifi: "SUPPORTED"
+      power: "UNKNOWN",
+      navigation: "UNKNOWN",
+      volume: "UNKNOWN",
+      media: "UNKNOWN",
+      keyboard: "UNKNOWN",
+      touchpad: "UNKNOWN",
+      apps: "UNKNOWN",
+      input: "UNKNOWN",
+      voice: "UNKNOWN",
+      channels: "UNKNOWN",
+      ir: "UNKNOWN",
+      bluetooth: "UNKNOWN",
+      wifi: "UNKNOWN"
     };
   }
 
@@ -66,7 +66,11 @@ export class FireTvAdapter implements TvAdapter {
   }
 
   async authenticate(device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
-    return { success: true, token: "fire_tv_open" };
+    const probe = await this.ping(device);
+    if (!probe.online) {
+      return { success: false, error: probe.error || "Fire TV protocol could not be verified." };
+    }
+    return { success: true, token: "fire_tv_verified_probe" };
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
@@ -145,8 +149,11 @@ export class GenericAdapter implements TvAdapter {
     }
   }
 
-  async authenticate(device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
-    return { success: true, token: "generic_token" };
+  async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
+    return {
+      success: false,
+      error: "Generic TV control is disabled until a verified device protocol is identified."
+    };
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
