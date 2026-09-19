@@ -107,3 +107,4 @@ export class GenericAdapter implements TvAdapter {
       error: "Fire TV remote transport is not verified; network probing is disabled."
     };
   }
+}
