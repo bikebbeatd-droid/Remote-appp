@@ -52,7 +52,7 @@ export class SonyBraviaAdapter implements TvAdapter {
       apps: "DEVICE_DEPENDENT",
       input: "SUPPORTED",
       voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
+      channels: "DEVICE_DEPENDENT",
       ir: "UNSUPPORTED",
       bluetooth: "UNSUPPORTED",
       wifi: "SUPPORTED"
