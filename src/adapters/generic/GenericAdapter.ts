@@ -1,6 +1,5 @@
 import { TvAdapter } from "../types";
 import { TvDevice, RemoteCommandType, CommandExecutionResult, DeviceCapabilities } from "../../core/types";
-import { TokenVault } from "../../pairing/tokenVault";
 
 export class FireTvAdapter implements TvAdapter {
   readonly platform = "fire_tv";
@@ -39,12 +38,11 @@ export class FireTvAdapter implements TvAdapter {
     };
   }
 
-  async authenticate(device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
-    const probe = await this.ping(device);
-    if (!probe.online) {
-      return { success: false, error: probe.error || "Fire TV protocol could not be verified." };
-    }
-    return { success: true, token: "fire_tv_verified_probe" };
+  async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
+    return {
+      success: false,
+      error: "Fire TV pairing is not implemented; no fake authentication token is issued."
+    };
   }
 
   async ping(_device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
