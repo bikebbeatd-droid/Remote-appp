@@ -5,20 +5,22 @@ export class PanasonicVieraAdapter implements TvAdapter {
   readonly platform = "panasonic_viera";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
+    // This adapter still routes through the app backend; direct VIERA transport
+    // is not verified in the Android/WebView client.
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED", // Viera SOAP interface does not provide a mouse pointer stream
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
+      power: "UNKNOWN",
+      navigation: "UNKNOWN",
+      volume: "UNKNOWN",
+      media: "UNKNOWN",
+      keyboard: "UNKNOWN",
+      touchpad: "UNSUPPORTED",
+      apps: "UNKNOWN",
+      input: "UNKNOWN",
       voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      channels: "UNKNOWN",
+      ir: "UNKNOWN",
+      bluetooth: "UNKNOWN",
+      wifi: "UNKNOWN"
     };
   }
 
@@ -69,64 +71,14 @@ export class PanasonicVieraAdapter implements TvAdapter {
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    const vieraKey = this.mapVieraKey(command);
-
-    if (!vieraKey && command !== "TEXT_INPUT" && command !== "LAUNCH_APP") {
-      return {
-        success: false,
-        command,
-        timestamp: Date.now(),
-        latencyMs: 0,
-        error: `${command} is UNSUPPORTED on Panasonic VIERA network protocol.`
-      };
-    }
-
-    try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          mappedKey: vieraKey,
-          value,
-          protocol: "panasonic_viera_rest"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Panasonic VIERA command execution failed. Ensure 'TV Remote App Control' is ON in TV Network Settings."
-        };
-      }
-
-      return {
-        success: true,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "panasonic_viera_rest"
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Panasonic VIERA at ${device.ip}:55000.`
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      error: "Panasonic VIERA direct transport is not yet verified in this build; backend-dependent control is disabled."
+    };
   }
 
   async authenticate(
@@ -140,17 +92,9 @@ export class PanasonicVieraAdapter implements TvAdapter {
   }
 
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 55000, protocol: "panasonic_viera_rest" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+    return {
+      online: false,
+      error: "Panasonic VIERA protocol verification requires a supported direct/native transport."
+    };
   }
 }
