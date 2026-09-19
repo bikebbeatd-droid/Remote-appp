@@ -7,19 +7,12 @@ export class CompanionWebReceiverAdapter implements TvAdapter {
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "SUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
-      voice: "SUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      power: "REQUIRES_NATIVE_BRIDGE", navigation: "REQUIRES_NATIVE_BRIDGE",
+      volume: "REQUIRES_NATIVE_BRIDGE", media: "REQUIRES_NATIVE_BRIDGE",
+      keyboard: "REQUIRES_NATIVE_BRIDGE", touchpad: "REQUIRES_NATIVE_BRIDGE",
+      apps: "REQUIRES_NATIVE_BRIDGE", input: "REQUIRES_NATIVE_BRIDGE",
+      voice: "REQUIRES_NATIVE_BRIDGE", channels: "REQUIRES_NATIVE_BRIDGE",
+      ir: "UNSUPPORTED", bluetooth: "UNKNOWN", wifi: "REQUIRES_NATIVE_BRIDGE"
     };
   }
 
@@ -76,30 +69,17 @@ export class CompanionWebReceiverAdapter implements TvAdapter {
     }
   }
 
-  async authenticate(device: TvDevice, pin: string): Promise<{ success: boolean; token?: string; error?: string }> {
-    try {
-      const res = await fetch("/api/devices/pair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          pin
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return { success: false, error: data.error || "Pairing failed" };
-      }
-      if (data.token) {
-        TokenVault.saveToken(device.id, data.token);
-      }
-      return { success: true, token: data.token };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
+  async authenticate(_device: TvDevice, _pin: string): Promise<{ success: boolean; token?: string; error?: string }> {
+    return {
+      success: false,
+      error: "Companion receiver pairing is not implemented in the verified local bridge."
+    };
   }
-
-  async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    return { online: device.isOnline, latencyMs: 5 };
+  async ping(_device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
+    return {
+      online: false,
+      error: "Companion receiver requires an explicit native/local bridge; fake device online state is disabled."
+    };
+  }
   }
 }
