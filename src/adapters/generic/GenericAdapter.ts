@@ -24,45 +24,19 @@ export class FireTvAdapter implements TvAdapter {
   }
 
   async executeCommand(
-    device: TvDevice,
+    _device: TvDevice,
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          value,
-          protocol: "fire_tv_dial"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      return {
-        success: data.success,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "fire_tv_dial",
-        error: data.error
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Fire TV at ${device.ip}.`
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      protocol: "fire_tv_unverified",
+      error: "Fire TV DIAL is discovery/app-launch oriented; no verified remote-key transport is implemented."
+    };
   }
 
   async authenticate(device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
@@ -73,21 +47,13 @@ export class FireTvAdapter implements TvAdapter {
     return { success: true, token: "fire_tv_verified_probe" };
   }
 
-  async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 8008, protocol: "fire_tv_dial" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
-  }
-}
+  async ping(_device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
+    return {
+      online: false,
+      latencyMs: 0,
+      error: "No verified generic network protocol is available; probing is disabled."
+    };
+  }}
 
 export class GenericAdapter implements TvAdapter {
   readonly platform = "generic";
@@ -129,22 +95,14 @@ export class GenericAdapter implements TvAdapter {
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
     return {
       success: false,
-      error: "Generic TV control is disabled until a verified device protocol is identified."
+      error: "Fire TV remote control requires a verified transport or native bridge; DIAL alone is not sufficient."
     };
   }
 
-  async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 80, protocol: "generic_http" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+  async ping(_device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
+    return {
+      online: false,
+      latencyMs: 0,
+      error: "Fire TV remote transport is not verified; network probing is disabled."
+    };
   }
-}
