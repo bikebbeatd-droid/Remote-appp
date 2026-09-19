@@ -80,7 +80,12 @@ export class DiscoveryService {
       if (!res.ok) throw new Error("Failed to scan devices");
       const data = await res.json();
       
-      const devices: TvDevice[] = (data.devices || []).filter((dev: any) => {\n        const platform = typeof dev?.platform === "string" ? dev.platform : "generic";\n        // Backend discovery is optional; only accept platforms that have a real adapter.\n        // Unknown/generic backend records must not become connectable devices.\n        return platform !== "generic" && !!dev?.ip && !!AdapterRegistry.getAdapter(platform);\n      }).map((dev: any) => {
+      const devices: TvDevice[] = (data.devices || []).filter((dev: any) => {
+        const platform = typeof dev?.platform === "string" ? dev.platform : "generic";
+        // Backend discovery is optional; only accept platforms that have a real adapter.
+        // Unknown/generic backend records must not become connectable devices.
+        return platform !== "generic" && !!dev?.ip && !!AdapterRegistry.getAdapter(platform);
+      }).map((dev: any) => {
         const storedToken = TokenVault.getToken(dev.id);
         const isPaired = !dev.requiresPairing || !!storedToken;
         return {
