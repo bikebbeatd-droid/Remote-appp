@@ -67,9 +67,9 @@ export class AndroidTVAdapter implements TvAdapter {
       navigation: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       volume: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       media: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
-      keyboard: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
+      keyboard: ready && typeof native?.sendText === "function" ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       touchpad: "UNSUPPORTED",
-      apps: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
+      apps: ready && typeof native?.launchApp === "function" ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       input: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       voice: "DEVICE_DEPENDENT",
       channels: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
@@ -189,7 +189,7 @@ export class AndroidTVAdapter implements TvAdapter {
       const result = native.pair(device.ip, pin.trim(), clientName);
       const parsed = result ? JSON.parse(result) : null;
       if (parsed?.success) {
-        return { success: true, token: parsed.token || "androidtv_native_v2" };
+        return { success: true, token: parsed.token };
       }
       return { success: false, error: parsed?.error || "Android TV pairing failed. Check the PIN shown on the TV." };
     } catch (err: any) {
