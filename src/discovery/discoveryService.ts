@@ -128,7 +128,7 @@ export class DiscoveryService {
         id: dev.id,
         name: dev.name,
         model: dev.model || "Network Smart TV",
-        platform,
+        platform: typeof dev.platform === "string" ? dev.platform : "generic",
         ip: dev.ip,
         port: dev.port,
         protocol: dev.protocol,
