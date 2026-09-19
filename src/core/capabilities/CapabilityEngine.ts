@@ -78,9 +78,9 @@ export class CapabilityEngine {
       case "UNKNOWN":
       default:
         return {
-          allowed: true,
+          allowed: false,
           status: "UNKNOWN",
-          reason: `Capability status for ${CAPABILITY_LABELS[capabilityKey]} is unverified for this device.`
+          reason: `Capability status for ${CAPABILITY_LABELS[capabilityKey]} is unverified for this device; the app will not claim or send an unverified command.`
         };
     }
   }
