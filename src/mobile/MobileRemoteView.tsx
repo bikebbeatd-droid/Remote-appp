@@ -41,6 +41,8 @@ interface MobileRemoteViewProps {
 const connectionLabel: Record<ConnectionState, string> = {
   CONNECTED: "Connected",
   CONNECTING: "Connecting",
+  PAIRING: "Pairing required",
+  RECONNECTING: "Reconnecting",
   DISCONNECTED: "Disconnected",
   ERROR: "Connection error"
 };
@@ -71,8 +73,32 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
 }) => {
   const connected = connectionState === "CONNECTED";
   const paired = Boolean(device?.isPaired);
-  const controlLabel = connected ? "Online" : paired ? "Paired" : "Not paired";
+  const pairingRequired = Boolean(device?.requiresPairing && !device?.isPaired);
+  const connectionActionLabel = !device
+    ? "Select TV"
+    : pairingRequired
+      ? "Pair TV"
+      : connected
+        ? "Connected"
+        : connectionState === "CONNECTING" || connectionState === "RECONNECTING"
+          ? "Connecting…"
+          : "Reconnect";
+  const controlLabel = connected ? "Online" : pairingRequired ? "Pair first" : paired ? "Paired" : "Not paired";
   const linkLabel = connected ? "Live" : device ? "Saved" : "—";
+  const statusTone = connected
+    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+    : connectionState === "CONNECTING" || connectionState === "RECONNECTING" || pairingRequired
+      ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+      : connectionState === "ERROR"
+        ? "border-rose-400/20 bg-rose-400/10 text-rose-300"
+        : "border-zinc-700 bg-zinc-900 text-zinc-400";
+  const statusDot = connected
+    ? "bg-emerald-400"
+    : connectionState === "CONNECTING" || connectionState === "RECONNECTING" || pairingRequired
+      ? "bg-amber-400 animate-pulse"
+      : connectionState === "ERROR"
+        ? "bg-rose-400"
+        : "bg-zinc-600";
 
   return (
     <main
@@ -94,13 +120,11 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
               </h1>
             </div>
             <div
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${connected
-                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                : connectionState === "CONNECTING"
-                  ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
-                  : "border-zinc-700 bg-zinc-900 text-zinc-400"}`}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusTone}`}
+              role="status"
+              aria-live="polite"
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400" : connectionState === "CONNECTING" ? "bg-amber-400 animate-pulse" : "bg-zinc-600"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
               {connectionLabel[connectionState] || connectionState}
             </div>
           </div>
@@ -121,6 +145,36 @@ export const MobileRemoteView: React.FC<MobileRemoteViewProps> = ({
               <p className="mt-1 text-[9px] uppercase tracking-wider text-zinc-500">Control</p>
               <p className="text-[10px] font-medium text-zinc-200">{controlLabel}</p>
             </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold text-zinc-200">
+                {device ? (connected ? "Remote is ready" : pairingRequired ? "Pairing needed" : "TV connection is not live") : "Choose a TV to begin"}
+              </p>
+              <p className="mt-0.5 text-[9px] leading-4 text-zinc-500">
+                {device
+                  ? pairingRequired
+                    ? "Authorize this TV before sending commands."
+                    : connected
+                      ? "Commands are sent through the verified selected transport."
+                      : "The remote stays visible, but commands will wait for a live connection."
+                  : "Scan or select a saved TV profile first."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (pairingRequired && onOpenPairing) {
+                  onOpenPairing();
+                  return;
+                }
+                onOpenTvSelector();
+              }}
+              className="shrink-0 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2 text-[10px] font-semibold text-indigo-200 transition hover:bg-indigo-500/20 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+              aria-label={connectionActionLabel}
+            >
+              {connectionActionLabel}
+            </button>
           </div>
         </header>
 
