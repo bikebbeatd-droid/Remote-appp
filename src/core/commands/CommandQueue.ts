@@ -183,6 +183,8 @@ export class CommandQueue {
     };
 
     return await run();
+  }
+
   private recordHistory(item: QueuedCommand) {
     this.history.unshift(item);
     if (this.history.length > this.maxHistory) {
