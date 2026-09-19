@@ -10,7 +10,7 @@ import { DeviceProfile, GlobalSearchFilter } from "./types";
  *
  * IR databases can be expanded independently as verified code sets are added.
  */
-const WORLDWIDE_CATALOG_BRANDS = ["Samsung","LG","Sony","TCL","Hisense","Philips","Panasonic","Sharp","Toshiba","Vizio","Xiaomi","Haier","JVC","Sanyo","Hitachi","Mitsubishi","Grundig","Thomson","Blaupunkt","Telefunken","Google TV","Roku","Amazon Fire TV","Insignia","Onn","Element","Westinghouse","Skyworth","Konka","Coocaa","RCA","Magnavox","Emerson","Sceptre","Dynex","Polaroid","Seiki","Curtis","ProScan","Symphonic","Apex","Funai","Sansui","Videocon","Onida","Vu","Micromax","Akai","Olevia","BPL","Croma","Kodak","Realme","OnePlus","Motorola","Nokia","Changhong","Orient","Dawlance","EcoStar","Loewe","Metz","Vestel","Finlux","NordMende","Salora","Dyon","Medion","Hisawa","Luxor","Bush","Goodmans","Alba","Ferguson","Logik","Cello","PEL","Changhong Ruba","Gree","Kenwood","Westpoint","Nobel","Nikai","Lloyd","Oxygen","Mitashi","CloudWalker","Shinco","iFFALCON","Aiwa","Huawei","Honor","FFALCON","Chiq","Kogan","Arcelik","Beko","Saba","Orion","Technika","Maxzen","O General","Super Asia","Crown","Vision","Mi TV","Redmi TV","Sharp Aquos","Sony Bravia","LG Electronics","Samsung Electronics","Philips TV","TCL TV","Hisense TV","Generic Smart TV","Other / Unknown Brand"] as const;
+const WORLDWIDE_CATALOG_BRANDS = ["Samsung","LG","Sony","TCL","Hisense","Philips","Panasonic","Sharp","Toshiba","Vizio","Xiaomi","Haier","JVC","Sanyo","Hitachi","Mitsubishi","Grundig","Thomson","Blaupunkt","Telefunken","Google TV","Roku","Amazon Fire TV","Insignia","Onn","Element","Westinghouse","Skyworth","Konka","Coocaa","RCA","Magnavox","Emerson","Sceptre","Dynex","Polaroid","Seiki","Curtis","ProScan","Symphonic","Apex","Funai","Sansui","Videocon","Onida","Vu","Micromax","Akai","Olevia","BPL","Croma","Kodak","Realme","OnePlus","Motorola","Nokia","Changhong","Orient","Dawlance","EcoStar","Loewe","Metz","Vestel","Finlux","NordMende","Salora","Dyon","Medion","Hisawa","Luxor","Bush","Goodmans","Alba","Ferguson","Logik","Cello","PEL","Changhong Ruba","Gree","Kenwood","Westpoint","Nobel","Nikai","Lloyd","Oxygen","Mitashi","CloudWalker","Shinco","iFFALCON","Aiwa","Huawei","Honor","FFALCON","Chiq","Kogan","Arcelik","Beko","Saba","Orion","Technika","Maxzen","O General","Super Asia","Crown","Vision","Mi TV","Redmi TV","Sharp Aquos","Sony Bravia","LG Electronics","Samsung Electronics","Philips TV","TCL TV","Hisense TV","Generic Smart TV","Other / Unknown Brand","Wisdom Share","Wisdom Share Smart Cloud TV","eShare Smart TV","TCL Roku TV","TCL Google TV","Hisense VIDAA","Hisense Google TV","Philips Android TV","Philips Google TV","Panasonic VIERA","Sony Google TV","Sony Android TV","Amazon Fire TV Edition","Google TV Streamer"] as const;
 
 const WORLDWIDE_CATALOG_PROFILES: DeviceProfile[] = WORLDWIDE_CATALOG_BRANDS.map((brand) => ({
   id: `catalog_${brand.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
@@ -247,8 +247,7 @@ export const GLOBAL_DEVICE_DATABASE: DeviceProfile[] = [
     },
     tvSettingsRequired: ["General > Devices > External Devices > Connect to LG ThinQ / Mobile TV ON", "General > Network > LG Connected Apps: ON"]
   },
-  {
-    id: "lg_oled_c2_c1_cx",
+  {    id: "lg_oled_c2_c1_cx",
     brand: "LG",
     series: "OLED Cinema 4K",
     model: "C2 / C1 / CX (webOS 6.0 / 5.0)",
@@ -497,8 +496,7 @@ export const GLOBAL_DEVICE_DATABASE: DeviceProfile[] = [
     authDescription: "Android TV Remote protocol v2 TLS PIN pairing.",
     verified: true,
     supportedInputSources: ["HDMI 1", "HDMI 2", "HDMI 3", "AV", "PatchWall Home"],
-    supportedAppDeepLinks: [
-      { id: "youtube", name: "YouTube", appCode: "com.google.android.youtube.tv" },
+    supportedAppDeepLinks: [      { id: "youtube", name: "YouTube", appCode: "com.google.android.youtube.tv" },
       { id: "netflix", name: "Netflix", appCode: "com.netflix.ninja" }
     ],
     defaultCapabilities: {
@@ -747,8 +745,7 @@ export const GLOBAL_DEVICE_DATABASE: DeviceProfile[] = [
     supportedAppDeepLinks: [
       { id: "youtube", name: "YouTube", appCode: "com.google.android.youtube.tv" }
     ],
-    defaultCapabilities: {
-      power: "SUPPORTED",
+    defaultCapabilities: {      power: "SUPPORTED",
       navigation: "SUPPORTED",
       volume: "SUPPORTED",
       media: "SUPPORTED",
@@ -997,8 +994,7 @@ export const GLOBAL_DEVICE_DATABASE: DeviceProfile[] = [
       navigation: "SUPPORTED",
       volume: "SUPPORTED",
       media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED",
+      keyboard: "SUPPORTED",      touchpad: "UNSUPPORTED",
       apps: "SUPPORTED",
       input: "SUPPORTED",
       voice: "UNSUPPORTED",
