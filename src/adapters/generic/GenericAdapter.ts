@@ -111,42 +111,19 @@ export class GenericAdapter implements TvAdapter {
   }
 
   async executeCommand(
-    device: TvDevice,
+    _device: TvDevice,
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          value,
-          protocol: "generic_http"
-        })
-      });
-      const data = await res.json();
-      return {
-        success: data.success,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        protocol: "generic_http",
-        error: data.error
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: err.message || "Failed to reach generic TV."
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      protocol: "generic_unverified",
+      error: "No verified network protocol is available for this TV."
+    };
   }
 
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
