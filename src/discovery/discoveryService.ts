@@ -53,12 +53,15 @@ export class DiscoveryService {
             isPaired: !!storedToken,
             isOnline: true,
             token: storedToken || undefined,
+            // mDNS discovery proves that an Android TV Remote v2 service is advertised;
+            // it does not prove that individual remote capabilities are usable. Capabilities
+            // are therefore left UNKNOWN until the authenticated native v2 bridge verifies them.
             capabilities: {
-              power: "SUPPORTED", navigation: "SUPPORTED", volume: "SUPPORTED",
-              media: "SUPPORTED", keyboard: "SUPPORTED", touchpad: "UNSUPPORTED",
-              apps: "SUPPORTED", input: "SUPPORTED", voice: "DEVICE_DEPENDENT",
-              channels: "SUPPORTED", ir: "UNSUPPORTED", bluetooth: "DEVICE_DEPENDENT",
-              wifi: "SUPPORTED"
+              power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN",
+              media: "UNKNOWN", keyboard: "UNKNOWN", touchpad: "UNSUPPORTED",
+              apps: "UNKNOWN", input: "UNKNOWN", voice: "UNKNOWN",
+              channels: "UNKNOWN", ir: "UNSUPPORTED", bluetooth: "UNKNOWN",
+              wifi: "UNKNOWN"
             },
             lastSeen: Date.now()
           };
