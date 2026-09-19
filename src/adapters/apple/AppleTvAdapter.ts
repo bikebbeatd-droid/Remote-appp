@@ -6,20 +6,13 @@ export class AppleTvAdapter implements TvAdapter {
   readonly platform = "apple_tv";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
+    // Apple TV MRP transport is not implemented directly in this build.
+    // Do not advertise capabilities that depend on the disabled backend transport.
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "SUPPORTED", // Apple TV remote protocol supports swipe/directional touchpad
-      apps: "SUPPORTED",
-      input: "UNSUPPORTED", // Apple TV is a streaming box, does not switch TV HDMI inputs
-      voice: "SUPPORTED",
-      channels: "UNSUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "SUPPORTED",
-      wifi: "SUPPORTED"
+      power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN", media: "UNKNOWN",
+      keyboard: "UNKNOWN", touchpad: "UNKNOWN", apps: "UNKNOWN", input: "UNSUPPORTED",
+      voice: "UNKNOWN", channels: "UNSUPPORTED", ir: "UNKNOWN",
+      bluetooth: "UNKNOWN", wifi: "UNKNOWN"
     };
   }
 
@@ -50,103 +43,30 @@ export class AppleTvAdapter implements TvAdapter {
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    const token = TokenVault.getToken(device.id) || device.token;
-
-    try {
-      const appleKey = this.mapAppleTvKey(command);
-
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          mappedKey: appleKey,
-          value,
-          token,
-          protocol: "apple_companion_mrp"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Apple TV MediaRemote command failed."
-        };
-      }
-
-      return {
-        success: true,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "apple_companion_mrp"
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Apple TV at ${device.ip}:49152.`
-      };
-    }
+    return {
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      error: "Apple TV MRP direct transport is not yet verified in this build; backend-dependent control is disabled."
+    };
   }
 
   async authenticate(
-    device: TvDevice,
-    pin: string,
-    clientName = "Universal Remote"
+    _device: TvDevice,
+    _pin: string,
+    _clientName = "Universal Remote"
   ): Promise<{ success: boolean; token?: string; error?: string }> {
-    try {
-      const res = await fetch("/api/devices/pair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          pin,
-          clientName,
-          protocol: "apple_companion_mrp"
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return { success: false, error: data.error || "Apple TV rejected 4-digit pairing PIN." };
-      }
-
-      if (data.token) {
-        TokenVault.saveToken(device.id, data.token);
-      }
-
-      return { success: true, token: data.token };
-    } catch (err: any) {
-      return { success: false, error: err.message || "Failed to pair with Apple TV." };
-    }
+    return {
+      success: false,
+      error: "Apple TV MRP pairing is not implemented; no fake authentication token is issued."
+    };
   }
-
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 49152, protocol: "apple_companion_mrp" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+    return {
+      online: false,
+      error: "Apple TV MRP direct transport verification requires a supported native/local transport."
+    };
   }
 }
