@@ -5,20 +5,13 @@ export class HisenseVidaaAdapter implements TvAdapter {
   readonly platform = "hisense_vidaa";
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
+    // VIDAA direct control is not verified in this build. Do not advertise
+    // commands that currently depend on the backend simulation/transport.
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
-      keyboard: "SUPPORTED",
-      touchpad: "UNSUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
-      voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN", media: "UNKNOWN",
+      keyboard: "UNKNOWN", touchpad: "UNSUPPORTED", apps: "UNKNOWN", input: "UNKNOWN",
+      voice: "UNSUPPORTED", channels: "UNKNOWN", ir: "UNKNOWN",
+      bluetooth: "UNKNOWN", wifi: "UNKNOWN"
     };
   }
 
@@ -66,78 +59,29 @@ export class HisenseVidaaAdapter implements TvAdapter {
     command: RemoteCommandType,
     value?: any
   ): Promise<CommandExecutionResult> {
-    const startTime = performance.now();
-    const vidaaKey = this.mapVidaaKey(command);
-
-    try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          mappedKey: vidaaKey,
-          value,
-          protocol: "hisense_vidaa_ws"
-        })
-      });
-
-      const data = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          command,
-          value,
-          timestamp: Date.now(),
-          latencyMs,
-          error: data.error || "Hisense VIDAA WebSocket command failed."
-        };
-      }
-
-      return {
-        success: true,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs,
-        protocol: "hisense_vidaa_ws"
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        command,
-        value,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: `Could not reach Hisense VIDAA TV at ${device.ip}:5757.`
-      };
-    }
-  }
-
-  async authenticate(
-    device: TvDevice,
-    pin: string
-  ): Promise<{ success: boolean; token?: string; error?: string }> {
     return {
-      success: true,
-      token: "hisense_vidaa_paired"
+      success: false,
+      command,
+      value,
+      timestamp: Date.now(),
+      latencyMs: 0,
+      error: "Hisense VIDAA direct transport is not yet verified in this build; backend-dependent control is disabled."
     };
   }
 
+  async authenticate(
+    _device: TvDevice,
+    _pin: string
+  ): Promise<{ success: boolean; token?: string; error?: string }> {
+    return {
+      success: false,
+      error: "Hisense VIDAA pairing is not implemented; fake pairing tokens are disabled."
+    };
+  }
   async ping(device: TvDevice): Promise<{ online: boolean; latencyMs?: number; error?: string }> {
-    const start = performance.now();
-    try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip: device.ip, port: device.port || 5757, protocol: "hisense_vidaa_ws" })
-      });
-      const latencyMs = Math.round(performance.now() - start);
-      return { online: res.ok, latencyMs };
-    } catch (err: any) {
-      return { online: false, error: err.message };
-    }
+    return {
+      online: false,
+      error: "Hisense VIDAA direct protocol verification requires a supported native/local transport."
+    };
   }
 }
