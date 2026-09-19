@@ -53,7 +53,8 @@ export class FireTvAdapter implements TvAdapter {
       latencyMs: 0,
       error: "No verified generic network protocol is available; probing is disabled."
     };
-  }}
+  }
+}
 
 export class GenericAdapter implements TvAdapter {
   readonly platform = "generic";
