@@ -25,6 +25,8 @@ export const DpadRemote: React.FC<DpadRemoteProps> = ({
   onSendCommand,
   onUnsupportedAttempt
 }) => {
+  const isCommandEnabled = (command: RemoteCommandType) => checkCommandSupport(device, command).allowed;
+
   const handlePress = (command: RemoteCommandType, value?: any) => {
     const check = checkCommandSupport(device, command);
     if (!check.allowed) {
