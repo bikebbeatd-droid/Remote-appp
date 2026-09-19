@@ -41,6 +41,37 @@ export class CommandEngine {
     }
 
     // 3. Resolve Device Adapter
+    // Never let the GenericAdapter become a silent network fallback.
+    // A device must have a known platform adapter (or the explicit IR/companion path)
+    // before any command can reach the transport layer.
+    const executablePlatforms = new Set([
+      "android_tv",
+      "google_tv",
+      "roku",
+      "tizen",
+      "webos",
+      "sony_bravia",
+      "fire_tv",
+      "panasonic_viera",
+      "philips",
+      "vizio_smartcast",
+      "apple_tv",
+      "hisense_vidaa",
+      "ir_universal",
+      "companion_web_receiver"
+    ]);
+
+    if (!device.platform || !executablePlatforms.has(device.platform)) {
+      return {
+        success: false,
+        command,
+        value,
+        timestamp,
+        latencyMs: 0,
+        error: "No verified transport is available for this device profile. Generic network commands are disabled."
+      };
+    }
+
     const adapter = AdapterRegistry.getAdapterForDevice(device);
 
     // 4. Dispatch through Command Queue (handles debouncing, timeouts, telemetry)
