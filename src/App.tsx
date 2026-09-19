@@ -206,19 +206,19 @@ export default function App() {
             isPaired: false,
             isOnline: false,
             capabilities: {
-              power: "SUPPORTED",
-              navigation: "SUPPORTED",
-              volume: "SUPPORTED",
-              media: "SUPPORTED",
-              keyboard: "SUPPORTED",
-              touchpad: "SUPPORTED",
-              apps: "SUPPORTED",
-              input: "SUPPORTED",
-              voice: "SUPPORTED",
-              channels: "SUPPORTED",
+              power: "UNKNOWN",
+              navigation: "UNKNOWN",
+              volume: "UNKNOWN",
+              media: "UNKNOWN",
+              keyboard: "UNKNOWN",
+              touchpad: "UNKNOWN",
+              apps: "UNKNOWN",
+              input: "UNKNOWN",
+              voice: "UNKNOWN",
+              channels: "UNKNOWN",
               ir: "UNSUPPORTED",
-              bluetooth: "SUPPORTED",
-              wifi: "SUPPORTED"
+              bluetooth: "UNKNOWN",
+              wifi: "UNKNOWN"
             },
             lastSeen: Date.now()
           };
