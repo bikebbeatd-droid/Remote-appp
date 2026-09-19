@@ -94,19 +94,19 @@ export class GenericAdapter implements TvAdapter {
 
   getCapabilities(_device?: TvDevice): DeviceCapabilities {
     return {
-      power: "SUPPORTED",
-      navigation: "SUPPORTED",
-      volume: "SUPPORTED",
-      media: "SUPPORTED",
+      power: "UNKNOWN",
+      navigation: "UNKNOWN",
+      volume: "UNKNOWN",
+      media: "UNKNOWN",
       keyboard: "UNKNOWN",
-      touchpad: "UNSUPPORTED",
-      apps: "SUPPORTED",
-      input: "SUPPORTED",
-      voice: "UNSUPPORTED",
-      channels: "SUPPORTED",
-      ir: "UNSUPPORTED",
-      bluetooth: "UNSUPPORTED",
-      wifi: "SUPPORTED"
+      touchpad: "UNKNOWN",
+      apps: "UNKNOWN",
+      input: "UNKNOWN",
+      voice: "UNKNOWN",
+      channels: "UNKNOWN",
+      ir: "UNKNOWN",
+      bluetooth: "UNKNOWN",
+      wifi: "UNKNOWN"
     };
   }
 
