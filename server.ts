@@ -1601,7 +1601,10 @@ app.post("/api/command", async (req, res) => {
   // 5. Execute Real Sony BRAVIA IRCC Command
   if (device.platform === "sony_bravia" || protocol === "sony_ircc_rest") {
     try {
-      const psk = token || activeTokensMap.get(deviceId) || "0000";
+      const psk = token || activeTokensMap.get(deviceId) || "";
+      if (!psk) {
+        return res.status(401).json({ requestId, deviceId, command, success: false, errorCode: "SONY_AUTH_REQUIRED", error: "Sony BRAVIA requires the configured Pre-Shared Key (PSK). No default PSK is allowed.", latencyMs: Date.now() - startTime });
+      }
       
       const irccMap: Record<string, string> = {
         POWER: "AAAAAQAAAAEAAAAVAw==",
@@ -1621,7 +1624,10 @@ app.post("/api/command", async (req, res) => {
         STOP: "AAAAAgAAAJcAAAAYAw=="
       };
 
-      const irccCode = irccMap[command] || "AAAAAQAAAAEAAABgAw==";
+      const irccCode = irccMap[command];
+      if (!irccCode) {
+        return res.status(400).json({ requestId, deviceId, command, success: false, errorCode: "UNSUPPORTED_COMMAND", error: `Sony BRAVIA command ${command} is not mapped for this protocol.`, latencyMs: Date.now() - startTime });
+      }
       const soapBody =
         '<?xml version="1.0"?>' +
         '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
@@ -1713,11 +1719,11 @@ app.post("/api/command", async (req, res) => {
         CAPTIONS: 175
       };
 
-      const resolvedKeycode = atvKeycodeMap[command] || (typeof keycode === "number" ? keycode : 23);
+      const resolvedKeycode = atvKeycodeMap[command] || (typeof keycode === "number" ? keycode : undefined);
 
       // Check if Companion Web Receiver is connected on this device ID
       const companion = companionReceiversMap.get(deviceId);
-      if (companion && companion.ws.readyState === WebSocket.OPEN) {
+      if (false && companion && companion.ws.readyState === WebSocket.OPEN) {
         companion.ws.send(JSON.stringify({
           type: "COMMAND_EXECUTED",
           command,
