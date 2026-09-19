@@ -127,20 +127,21 @@ export class DiscoveryService {
         isPaired,
         isOnline: true,
         token: storedToken || dev.token,
+        // Never invent capabilities when a probe did not verify them.
         capabilities: dev.capabilities || {
-          power: "SUPPORTED",
-          navigation: "SUPPORTED",
-          volume: "SUPPORTED",
-          media: "SUPPORTED",
+          power: "UNKNOWN",
+          navigation: "UNKNOWN",
+          volume: "UNKNOWN",
+          media: "UNKNOWN",
           keyboard: "UNKNOWN",
-          touchpad: "UNSUPPORTED",
-          apps: "SUPPORTED",
-          input: "SUPPORTED",
-          voice: "UNSUPPORTED",
-          channels: "SUPPORTED",
-          ir: "UNSUPPORTED",
-          bluetooth: "UNSUPPORTED",
-          wifi: "SUPPORTED"
+          touchpad: "UNKNOWN",
+          apps: "UNKNOWN",
+          input: "UNKNOWN",
+          voice: "UNKNOWN",
+          channels: "UNKNOWN",
+          ir: "UNKNOWN",
+          bluetooth: "UNKNOWN",
+          wifi: "UNKNOWN"
         }
       };
 
