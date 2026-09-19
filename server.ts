@@ -1721,28 +1721,6 @@ app.post("/api/command", async (req, res) => {
 
       const resolvedKeycode = atvKeycodeMap[command] || (typeof keycode === "number" ? keycode : undefined);
 
-      // Check if Companion Web Receiver is connected on this device ID
-      const companion = companionReceiversMap.get(deviceId);
-      if (false && companion && companion.ws.readyState === WebSocket.OPEN) {
-        companion.ws.send(JSON.stringify({
-          type: "COMMAND_EXECUTED",
-          command,
-          value,
-          keycode: resolvedKeycode,
-          timestamp: Date.now()
-        }));
-        return res.json({
-          requestId,
-          deviceId,
-          command,
-          value,
-          keycode: resolvedKeycode,
-          success: true,
-          protocol: "companion_ws",
-          latencyMs: Date.now() - startTime
-        });
-      }
-
       // Otherwise send real TLS command to native Android TV on port 6467 / 6466
       const result = await sendAndroidTvCommand(
         device.ip,
