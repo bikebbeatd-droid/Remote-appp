@@ -61,12 +61,23 @@ export class ConnectionManager {
       return;
     }
 
+    // Discovery may identify a device before pairing is complete. Never probe a
+    // pairing-required device as if it were already connected.
     if (device.requiresPairing && !device.isPaired) {
       this.setState("PAIRING");
-    } else {
-      // Connect to device
-      this.connect(device);
+      return;
     }
+
+    // Only an explicitly verified/implemented platform may enter CONNECTING.
+    // Generic/unknown devices must remain disconnected until a real adapter exists.
+    const adapter = AdapterRegistry.getAdapterForDevice(device);
+    if (!device.platform || device.platform === "generic") {
+      this.setState("DISCONNECTED", { error: "No verified control protocol for this device." });
+      return;
+    }
+
+    // Connect to device
+    this.connect(device);
   }
 
   async connect(device: TvDevice): Promise<boolean> {
