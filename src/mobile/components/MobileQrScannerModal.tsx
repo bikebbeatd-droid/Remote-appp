@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import jsQR from "jsqr";
+import { QrPairingService } from "../../pairing/qrService";
 import { TvDevice } from "../../core/types";
 import { TokenVault } from "../../pairing/tokenVault";
 import { TransportRegistry } from "../../transports/TransportRegistry";
@@ -68,155 +69,102 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
     setHasTorch(false);
   }, []);
 
-  // Parse QR code string to TV connection info
-  const parseQrData = (rawData: string): {
-    deviceId: string;
-    name: string;
-    ip: string;
-    port: number;
-    protocol: string;
-    pin?: string;
-  } | null => {
-    try {
-      // 1. Try parsing JSON format
-      if (rawData.trim().startsWith("{")) {
-        const parsed = JSON.parse(rawData);
-        const rawIp = parsed.ip ? String(parsed.ip).trim() : "";
-        if (rawIp && rawIp !== "127.0.0.1" && rawIp !== "localhost") {
-          return {
-            deviceId: parsed.deviceId || `tv_${rawIp.replace(/\./g, "_")}`,
-            name: parsed.name || `Smart TV (${rawIp})`,
-            ip: rawIp,
-            port: Number(parsed.port) || 6467,
-            protocol: parsed.protocol || "android_tv_receiver",
-            pin: parsed.pin ? String(parsed.pin) : undefined
-          };
-        }
-      }
-
-      // 2. Try parsing URL / URI query format
-      if (rawData.includes("?") || rawData.startsWith("ustv://") || rawData.startsWith("http")) {
-        const urlStr = rawData.startsWith("ustv://") 
-          ? rawData.replace("ustv://pair?", "http://dummy.local/?")
-          : rawData;
-        const url = new URL(urlStr);
-        const dev = url.searchParams.get("dev") || url.searchParams.get("deviceId");
-        const ip = url.searchParams.get("ip");
-        const name = url.searchParams.get("name") || "Smart TV";
-        const port = Number(url.searchParams.get("port")) || 6467;
-        const proto = url.searchParams.get("proto") || url.searchParams.get("protocol") || "android_tv_receiver";
-        const pin = url.searchParams.get("pin");
-
-        if (ip) {
-          const cleanIp = ip.trim();
-          if (cleanIp !== "127.0.0.1" && cleanIp !== "localhost") {
-            return {
-              deviceId: dev || `tv_${cleanIp.replace(/\./g, "_")}`,
-              name: decodeURIComponent(name),
-              ip: cleanIp,
-              port,
-              protocol: decodeURIComponent(proto),
-              pin: pin ? decodeURIComponent(pin) : undefined
-            };
-          }
-        }
-      }
-
-      // 3. Raw IP string
-      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rawData.trim())) {
-        const ip = rawData.trim();
-        if (ip !== "127.0.0.1") {
-          return {
-            deviceId: `tv_${ip.replace(/\./g, "_")}`,
-            name: `Smart TV (${ip})`,
-            ip,
-            port: 6467,
-            protocol: "android_tv_receiver"
-          };
-        }
-      }
-    } catch (e) {
-      console.error("Error parsing QR payload:", e);
-    }
-    return null;
+  // Parse and verify the versioned TV QR payload.
+  const parseQrData = (rawData: string) => {
+    const parsed = QrPairingService.parsePairingPayload(rawData);
+    if (!parsed.success || !parsed.data) return null;
+    return parsed.data;
   };
 
-  // Handle successful QR detection
+  // A QR code is never treated as a successful connection by itself.
+  // Verify the real TV transport before adding it to the device list.
   const handleQrDetected = async (qrString: string) => {
     if (isProcessing) return;
     setIsProcessing(true);
     setStatusMessage("Validating TV connection payload...");
 
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      try {
-        navigator.vibrate([50, 50, 100]);
-      } catch {}
-    }
+    try {
+      if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
+    } catch {}
 
     const tvInfo = parseQrData(qrString);
-
     if (!tvInfo) {
-      setErrorMessage("Scanned QR code does not contain a valid TV pairing payload.");
+      setErrorMessage("Scanned QR code is not a valid Universal Smart TV QR code.");
       setIsProcessing(false);
       return;
     }
 
     setScannedResult(tvInfo);
-    setStatusMessage(`Connecting to ${tvInfo.name} (${tvInfo.ip})...`);
+    setStatusMessage(`Verifying ${tvInfo.name} at ${tvInfo.ip}:${tvInfo.port}...`);
 
     try {
+      let verified = false;
+      const native = (globalThis as any).AndroidRemoteBridge;
+      const lower = tvInfo.protocol.toLowerCase();
+
+      if (lower.includes("android") && typeof native?.ping === "function") {
+        verified = Boolean(native.ping(tvInfo.ip, tvInfo.port));
+      } else {
+        const res = await fetch("/api/devices/probe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: tvInfo.ip,
+            port: tvInfo.port,
+            protocol: tvInfo.protocol
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        verified = Boolean(res.ok && data.success && data.device?.ip === tvInfo.ip);
+      }
+
+      if (!verified) {
+        throw new Error("The TV did not respond to protocol verification. Ensure the phone and TV are on the same Wi-Fi.");
+      }
+
+      const platform =
+        lower.includes("roku") ? "roku" :
+        lower.includes("tizen") || lower.includes("samsung") ? "tizen" :
+        lower.includes("webos") || lower.includes("lg") ? "webos" :
+        lower.includes("sony") ? "sony_bravia" :
+        lower.includes("android") || lower.includes("google") ? "android_tv" :
+        "generic";
+
       const device: TvDevice = {
         id: tvInfo.deviceId,
         name: tvInfo.name,
-        brand: "Smart TV",
-        model: "Smart TV Display",
-        platform: (tvInfo.protocol.includes("android") ? "android_tv" : tvInfo.protocol.includes("roku") ? "roku" : "generic") as any,
+        brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : "Android TV",
+        model: "Verified network device",
+        platform: platform as TvDevice["platform"],
         ip: tvInfo.ip,
         port: tvInfo.port,
         protocol: tvInfo.protocol,
-        requiresPairing: true,
-        isPaired: true,
+        requiresPairing: tvInfo.pairingRequired,
+        isPaired: false,
         isOnline: true,
         lastSeen: Date.now(),
         capabilities: {
-          power: "SUPPORTED",
-          navigation: "SUPPORTED",
-          volume: "SUPPORTED",
-          media: "SUPPORTED",
-          keyboard: "SUPPORTED",
-          touchpad: "SUPPORTED",
-          apps: "SUPPORTED",
-          input: "SUPPORTED",
-          voice: "SUPPORTED",
-          channels: "SUPPORTED",
-          ir: "REQUIRES_HARDWARE",
-          bluetooth: "UNKNOWN",
-          wifi: "SUPPORTED",
-        },
+          power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN",
+          media: "UNKNOWN", keyboard: "UNKNOWN", touchpad: "UNKNOWN",
+          apps: "UNKNOWN", input: "UNKNOWN", voice: "UNKNOWN",
+          channels: "UNKNOWN", ir: "REQUIRES_HARDWARE", bluetooth: "UNKNOWN",
+          wifi: "SUPPORTED"
+        }
       };
 
-      // Perform real pairing handshake if PIN was encoded
-      if (tvInfo.pin) {
-        setStatusMessage(`Authenticating PIN ${tvInfo.pin}...`);
-        try {
-          const transport = TransportRegistry.getTransportForDevice(device);
-          const authRes = await transport.authenticate(device, tvInfo.pin);
-          if (authRes.success && authRes.token) {
-            TokenVault.saveToken(device.id, authRes.token);
-            device.isPaired = true;
-            device.token = authRes.token;
-          }
-        } catch {}
-      }
+      setStatusMessage(
+        device.requiresPairing
+          ? "TV verified. Complete the real pairing step."
+          : "TV verified."
+      );
 
-      setStatusMessage("Paired & Connected Successfully!");
       setTimeout(() => {
         stopCamera();
-        onScanSuccess(device, tvInfo.pin);
+        onScanSuccess(device);
         onClose();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
-      setErrorMessage(`Connection failed: ${err.message}`);
+      setErrorMessage(err?.message || "Could not verify the TV connection.");
       setIsProcessing(false);
     }
   };
