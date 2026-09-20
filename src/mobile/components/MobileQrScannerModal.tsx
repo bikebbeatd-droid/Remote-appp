@@ -98,30 +98,7 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
     setStatusMessage(`Verifying ${tvInfo.name} at ${tvInfo.ip}:${tvInfo.port}...`);
 
     try {
-      let verified = false;
-      const native = (globalThis as any).AndroidRemoteBridge;
       const lower = tvInfo.protocol.toLowerCase();
-
-      if (lower.includes("android") && typeof native?.ping === "function") {
-        verified = Boolean(native.ping(tvInfo.ip, tvInfo.port));
-      } else {
-        const res = await fetch("/api/devices/probe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ip: tvInfo.ip,
-            port: tvInfo.port,
-            protocol: tvInfo.protocol
-          })
-        });
-        const data = await res.json().catch(() => ({}));
-        verified = Boolean(res.ok && data.success && data.device?.ip === tvInfo.ip);
-      }
-
-      if (!verified) {
-        throw new Error("The TV did not respond to protocol verification. Ensure the phone and TV are on the same Wi-Fi.");
-      }
-
       const platform =
         lower.includes("roku") ? "roku" :
         lower.includes("tizen") || lower.includes("samsung") ? "tizen" :
@@ -130,18 +107,18 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
         lower.includes("android") || lower.includes("google") ? "android_tv" :
         "generic";
 
-      const device: TvDevice = {
+      const candidate: TvDevice = {
         id: tvInfo.deviceId,
         name: tvInfo.name,
-        brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : "Android TV",
-        model: "Verified network device",
+        brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : platform === "android_tv" ? "Android TV" : "Unknown",
+        model: "Pending verification",
         platform: platform as TvDevice["platform"],
         ip: tvInfo.ip,
         port: tvInfo.port,
         protocol: tvInfo.protocol,
         requiresPairing: tvInfo.pairingRequired,
         isPaired: false,
-        isOnline: true,
+        isOnline: false,
         lastSeen: Date.now(),
         capabilities: {
           power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN",
@@ -151,6 +128,21 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
           wifi: "SUPPORTED"
         }
       };
+
+      const transport = TransportRegistry.getTransportForDevice(candidate);
+      const info = await transport.getDeviceInfo(candidate);
+      if (!info.isAlive) {
+        throw new Error("The TV did not respond to its real protocol verification. Ensure the phone and TV are on the same Wi-Fi.");
+      }
+
+      const device: TvDevice = {
+        ...candidate,
+        model: info.model || candidate.model,
+        isOnline: true,
+        lastSeen: Date.now()
+      };
+
+
 
       setStatusMessage(
         device.requiresPairing
