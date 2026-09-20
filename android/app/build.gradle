@@ -33,6 +33,15 @@ android {
     }
 
     signingConfigs {
+        debug {
+            def debugKeystore = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            if (debugKeystore.exists()) {
+                storeFile debugKeystore
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
         release {
             def keystorePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: (project.hasProperty('RELEASE_STORE_FILE') ? project.property('RELEASE_STORE_FILE') : null)
             if (keystorePath && file(keystorePath).exists()) {
@@ -45,6 +54,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
