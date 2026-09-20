@@ -59,8 +59,17 @@ public class MainActivity extends BridgeActivity {
                     permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
                 }
             }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            boolean isTv = false;
+            try {
+                UiModeManager uiModeManager = (UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
+                isTv = uiModeManager != null && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+            } catch (Exception ignored) {}
+            if (!isTv && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.CAMERA);
+            }
+            if (Build.VERSION.SDK_INT >= 31) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_SCAN);
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
             }
             if (!permissions.isEmpty()) {
                 ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), 4108);
