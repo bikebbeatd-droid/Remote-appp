@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { QrPairingService } from "../../pairing/qrService";
 import { TvDevice } from "../../core/types";
+import { TransportRegistry } from "../../transports/TransportRegistry";
 import {
   Camera,
   X,
@@ -75,31 +76,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
     const { deviceId, name, ip, port, protocol, pairingRequired } = parsed.data;
 
-    // QR parsing is NOT proof that a TV is online. Verify the actual target first.
-    let verified = false;
-    try {
-      const native = (globalThis as any).AndroidRemoteBridge;
-      if (protocol.toLowerCase().includes("android") && native?.ping) {
-        verified = Boolean(native.ping(ip, port));
-      } else {
-        const probe = await fetch("/api/devices/probe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ip, port, protocol })
-        });
-        const result = await probe.json().catch(() => ({}));
-        verified = Boolean(probe.ok && result.success && result.device?.ip === ip);
-      }
-    } catch {
-      verified = false;
-    }
-
-    if (!verified) {
-      setCameraError(`QR is valid, but the TV at ${ip}:${port} could not be verified. Make sure the phone and TV are on the same Wi-Fi and try again.`);
-      setIsProcessing(false);
-      return;
-    }
-
     const lower = protocol.toLowerCase();
     const platform =
       lower.includes("roku") ? "roku" :
@@ -109,19 +85,25 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       lower.includes("android") || lower.includes("google") ? "android_tv" :
       "generic";
 
+    if (platform === "generic") {
+      setCameraError("The QR payload does not identify a verified control protocol.");
+      setIsProcessing(false);
+      return;
+    }
+
     const scannedDevice: TvDevice = {
       id: deviceId,
       name,
       brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : "Android TV",
-      model: "Verified network device",
+      model: "Unknown until verified",
       ip,
       port,
       protocol,
       platform: platform as TvDevice["platform"],
       requiresPairing: pairingRequired,
       isPaired: false,
-      isOnline: true,
-      lastSeen: Date.now(),
+      isOnline: false,
+      lastSeen: undefined,
       capabilities: {
         power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN",
         media: "UNKNOWN", keyboard: "UNKNOWN", touchpad: "UNKNOWN",
@@ -131,10 +113,33 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       }
     };
 
+    // QR parsing is not proof that a TV is online. Verify it through the
+    // same protocol-specific transport used for normal device connections.
+    let verifiedInfo: { model?: string; version?: string; isAlive: boolean } | null = null;
+    try {
+      const transport = TransportRegistry.getTransportForDevice(scannedDevice);
+      verifiedInfo = await transport.getDeviceInfo(scannedDevice);
+    } catch (err: any) {
+      verifiedInfo = { isAlive: false, version: undefined, model: undefined };
+    }
+
+    if (!verifiedInfo?.isAlive) {
+      setCameraError(`QR is valid, but the TV at ${ip}:${port} could not be verified by the ${platform} protocol. Make sure the phone and TV are reachable on the same LAN and try again.`);
+      setIsProcessing(false);
+      return;
+    }
+
+    const verifiedDevice: TvDevice = {
+      ...scannedDevice,
+      model: verifiedInfo.model || scannedDevice.model,
+      isOnline: true,
+      lastSeen: Date.now()
+    };
+
     setSuccessPayload({ name, ip, pin: "" });
     setTimeout(() => {
       stopCamera();
-      onTvScannedAndPaired({ device: scannedDevice, pin: "" });
+      onTvScannedAndPaired({ device: verifiedDevice, pin: "" });
       onClose();
     }, 700);
   }, [isProcessing, onTvScannedAndPaired, onClose, stopCamera]);
