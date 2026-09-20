@@ -28,14 +28,20 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MainActivity extends BridgeActivity {
 
     private AndroidRemoteBridge remoteBridge;
+    private LocalRemoteReceiver localRemoteReceiver;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView webView = this.bridge.getWebView();
             remoteBridge = new AndroidRemoteBridge(this);
+            localRemoteReceiver = new LocalRemoteReceiver((command, value) -> {
+                if (remoteBridge != null) remoteBridge.setPendingLocalCommand(command, value);
+            });
+            localRemoteReceiver.start();
             webView.addJavascriptInterface(remoteBridge, "AndroidRemoteBridge");
             requestRequiredRuntimePermissions();
         }
@@ -71,6 +77,9 @@ public class MainActivity extends BridgeActivity {
         private final AndroidTvRemoteV2 androidTvRemote;
         private final NsdManager nsdManager;
         private final Map<String, NsdServiceInfo> androidTvServices = new ConcurrentHashMap<>();
+        private volatile String pendingCommand = "";
+        private volatile String pendingValue = null;
+        private volatile long pendingTimestamp = 0L;
         private NsdManager.DiscoveryListener discoveryListener;
 
         public AndroidRemoteBridge(Activity activity) {
@@ -83,6 +92,47 @@ public class MainActivity extends BridgeActivity {
             this.irManager = manager;
             this.androidTvRemote = new AndroidTvRemoteV2(this.context);
             this.nsdManager = (NsdManager) this.context.getSystemService(Context.NSD_SERVICE);
+        }
+
+        @JavascriptInterface
+        public boolean startLocalReceiver() {
+            return localRemoteReceiver != null && localRemoteReceiver.start();
+        }
+
+        @JavascriptInterface
+        public boolean isLocalReceiverRunning() {
+            return localRemoteReceiver != null && localRemoteReceiver.isRunning();
+        }
+
+        @JavascriptInterface
+        public int getLocalReceiverPort() {
+            return localRemoteReceiver == null ? 8765 : localRemoteReceiver.getPort();
+        }
+
+        @JavascriptInterface
+        public String getLocalReceiverPairingPin() {
+            return localRemoteReceiver == null ? "" : localRemoteReceiver.getPairingPin();
+        }
+
+        @JavascriptInterface
+        public void regenerateLocalReceiverPin() {
+            if (localRemoteReceiver != null) localRemoteReceiver.regeneratePin();
+        }
+
+        @JavascriptInterface
+        public void setPendingLocalCommand(String command, String value) {
+            pendingCommand = command == null ? "" : command;
+            pendingValue = value == null ? "null" : value;
+            pendingTimestamp = System.currentTimeMillis();
+        }
+
+        @JavascriptInterface
+        public String getPendingLocalCommand() {
+            if (pendingCommand == null || pendingCommand.isEmpty()) return "";
+            String result = "{\"command\":\"" + jsonEscape(pendingCommand) + "\",\"value\":" + (pendingValue == null ? "null" : pendingValue) + ",\"timestamp\":" + pendingTimestamp + "}";
+            pendingCommand = "";
+            pendingValue = null;
+            return result;
         }
 
         @JavascriptInterface
