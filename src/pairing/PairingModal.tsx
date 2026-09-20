@@ -38,10 +38,11 @@ export const PairingModal: React.FC<PairingModalProps> = ({
     setErrorMsg(null);
   };
 
+  const pinRequiredForUi = Boolean(device.requiresPairing && !device.isPaired);
+
   const verifyPin = async () => {
     const pin = pinDigits.join("");
-    const pinRequired = !["tizen", "roku"].includes(device.platform);
-    if (pinRequired && !/^\d{6}$/.test(pin)) {
+    if (pinRequiredForUi && !pin) {
       setErrorMsg("Enter the pairing credential currently requested by the actual TV.");
       return;
     }
@@ -104,7 +105,7 @@ export const PairingModal: React.FC<PairingModalProps> = ({
               </div>
               {errorMsg && <div className="p-3 bg-rose-950/50 border border-rose-800/80 rounded-xl flex gap-2 text-xs text-rose-300"><AlertCircle className="w-4 h-4 shrink-0" />{errorMsg}</div>}
               {successMsg && <div className="p-3 bg-emerald-950/50 border border-emerald-800/80 rounded-xl flex gap-2 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4 shrink-0" />{successMsg}</div>}
-              <button onClick={verifyPin} disabled={isVerifying || pinDigits.some(d => !d)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium rounded-xl flex items-center justify-center gap-2">
+              <button onClick={verifyPin} disabled={isVerifying || (pinRequiredForUi && pinDigits.some(d => !d))} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium rounded-xl flex items-center justify-center gap-2">
                 {isVerifying ? <><RefreshCw className="w-4 h-4 animate-spin" />Verifying with TV...</> : <>Confirm Pairing<ArrowRight className="w-4 h-4" /></>}
               </button>
             </div>
