@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { QrCode, Smartphone, KeyRound, ShieldAlert, CheckCircle, RefreshCw, Radio } from "lucide-react";
+import { Smartphone, KeyRound, RefreshCw } from "lucide-react";
 import { TvDevice } from "../../core/types";
 import { QrCodeView } from "../../components/QrCodeView";
 import { buildTvPairingPayload } from "../../utils/qrCodeGenerator";
@@ -19,24 +19,34 @@ export const TvPairingQrCard: React.FC<TvPairingQrCardProps> = ({
   focusedIndex,
   onSelectAction
 }) => {
-  const displayPin = pairingPin || (device?.isPaired ? "PAIRED" : "4821");
+  const { pairingUrl } = useMemo(() => {
+    if (!device) return { pairingUrl: "" };
+    try {
+      return buildTvPairingPayload(device);
+    } catch {
+      return { pairingUrl: "" };
+    }
+  }, [device]);
 
-  const { pairingUrl, rawJson } = useMemo(() => {
-    return buildTvPairingPayload(device, displayPin);
-  }, [device, displayPin]);
+  const hasQr = Boolean(pairingUrl);
+  const hasRealPin = Boolean(pairingPin);
 
   return (
     <div className="bg-zinc-900/90 border-2 border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
-      
-      {/* Left: 10-Foot Real Dynamic Scannable QR Code Graphic & Instructions */}
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
         <div className="shrink-0">
-          <QrCodeView
-            value={pairingUrl}
-            size={132}
-            showControls={false}
-            altText="TV Pairing Scannable QR Code"
-          />
+          {hasQr ? (
+            <QrCodeView
+              value={pairingUrl}
+              size={132}
+              showControls={false}
+              altText="TV connection QR code"
+            />
+          ) : (
+            <div className="w-[132px] h-[132px] rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-center text-xs text-zinc-500 p-3">
+              Verify this TV before generating a QR code.
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 text-center sm:text-left">
@@ -48,27 +58,27 @@ export const TvPairingQrCard: React.FC<TvPairingQrCardProps> = ({
             {connectedPhoneCount > 0 ? "Ready to Stream & Control" : "Ready to Connect"}
           </h2>
           <p className="text-sm text-zinc-400 max-w-md">
-            Open the Universal Remote app on your phone and tap <strong className="text-indigo-300">"Scan TV QR"</strong>, or point your phone camera at this QR code.
+            Scan this QR with the Universal Remote app. The QR contains connection metadata only; it does not contain a PIN, password, or permanent authentication token.
           </p>
         </div>
       </div>
 
-      {/* Right: Large 10-Foot PIN & Connection Box */}
       <div className="flex flex-col items-center md:items-end gap-3 w-full md:w-auto">
         <div className="bg-zinc-950 border-2 border-indigo-500/50 rounded-2xl p-4 text-center min-w-[200px] shadow-lg shadow-indigo-950/50">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center justify-center gap-1">
             <KeyRound className="w-3.5 h-3.5" />
-            Pairing PIN
+            TV Pairing PIN
           </span>
           <div className="text-3xl sm:text-4xl font-mono font-black text-indigo-200 tracking-widest my-1">
-            {displayPin}
+            {hasRealPin ? pairingPin : "—"}
           </div>
           <p className="text-[11px] text-zinc-400 font-medium">
-            {connectedPhoneCount > 0 ? "● Device Authenticated" : "Waiting for code entry"}
+            {hasRealPin
+              ? "Enter the PIN currently displayed by the actual TV."
+              : "No TV PIN is available. Generate it from the actual TV protocol if required."}
           </p>
         </div>
 
-        {/* 10-Foot TV Remote Navigable Action Buttons */}
         <div className="flex items-center gap-3">
           <button
             id="tv-btn-pair-new"
@@ -80,7 +90,7 @@ export const TvPairingQrCard: React.FC<TvPairingQrCardProps> = ({
             }`}
           >
             <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Generate New PIN</span>
+            <span>Pair / Refresh</span>
           </button>
 
           <button
@@ -97,8 +107,6 @@ export const TvPairingQrCard: React.FC<TvPairingQrCardProps> = ({
           </button>
         </div>
       </div>
-
     </div>
   );
 };
-
