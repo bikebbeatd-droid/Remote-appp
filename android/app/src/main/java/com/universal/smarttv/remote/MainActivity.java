@@ -3,6 +3,8 @@ package com.universal.smarttv.remote;
 import android.content.Context;
 import android.hardware.ConsumerIrManager;
 import android.os.Bundle;
+import android.app.UiModeManager;
+import android.content.res.Configuration;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Build;
@@ -165,6 +167,17 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean launchApp(String ip, String appLink) {
             return androidTvRemote.launchApp(ip, appLink);
+        }
+
+        @JavascriptInterface
+        public boolean isAndroidTv() {
+            try {
+                UiModeManager uiModeManager = (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
+                return uiModeManager != null &&
+                    (uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION);
+            } catch (Exception e) {
+                return false;
+            }
         }
 
         @JavascriptInterface
