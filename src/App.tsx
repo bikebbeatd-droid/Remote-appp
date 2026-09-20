@@ -153,6 +153,7 @@ export default function App() {
   useEffect(() => {
     const saved = TokenVault.getSavedDevices() || [];
     setDevices(saved);
+    let isAndroidTvHost = false;
 
     // If this APK is running directly on an Android TV, expose a real TV
     // connection QR. The IP comes from the device network interface; it is
@@ -160,6 +161,7 @@ export default function App() {
     try {
       const bridge = (globalThis as any).AndroidRemoteBridge;
       if (bridge?.isAndroidTv?.()) {
+        isAndroidTvHost = true;
         const lanIp = String(bridge.getLanIp?.() || "").trim();
         if (lanIp) {
           const tvDevice: TvDevice = {
@@ -192,11 +194,13 @@ export default function App() {
     } catch (e) {
       console.warn("Android TV host detection unavailable:", e);
     }
-    const active = TokenVault.getActiveDevice();
-    if (active) {
-      setCurrentDeviceId(active.id);
-    } else if (saved && saved.length > 0) {
-      setCurrentDeviceId(saved[0].id);
+    if (!isAndroidTvHost) {
+      const active = TokenVault.getActiveDevice();
+      if (active) {
+        setCurrentDeviceId(active.id);
+      } else if (saved && saved.length > 0) {
+        setCurrentDeviceId(saved[0].id);
+      }
     }
 
     // Handle incoming QR Code deep link scan (e.g. ?pair=true&dev=...&ip=...)
