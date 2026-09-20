@@ -1,42 +1,66 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import { ErrorBoundary } from './components/ErrorBoundary.tsx';
-import './index.css';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import "./index.css";
 
-const rootElement = document.getElementById('root');
+const rootElement = document.getElementById("root");
 
 if (!rootElement) {
-  throw new Error('Application root element (#root) is missing.');
+  throw new Error("Application root element (#root) is missing.");
 }
 
-const showFatalError = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+const escapeHtml = (value: unknown) =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const showBootError = (error: unknown) => {
+  const message = error instanceof Error ? error.stack || error.message : String(error);
   rootElement.innerHTML = `
-    <div style="min-height:100vh;background:#09090b;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif">
-      <div style="max-width:680px;width:100%;background:#18181b;border:1px solid #3f3f46;border-radius:20px;padding:24px">
-        <h1 style="margin:0 0 8px;font-size:22px">Universal Smart TV Remote</h1>
-        <p style="color:#a1a1aa;margin:0 0 18px">The app could not start safely.</p>
-        <pre style="white-space:pre-wrap;word-break:break-word;background:#09090b;border-radius:12px;padding:14px;color:#fda4af;font-size:12px">${message.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-        <button onclick="location.reload()" style="margin-top:14px;padding:10px 16px;border:0;border-radius:10px;background:#4f46e5;color:white;font-weight:700">Reload app</button>
+    <div style="min-height:100vh;background:#050507;color:#f4f4f5;display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,sans-serif">
+      <div style="width:min(680px,100%);background:#18181b;border:1px solid #3f3f46;border-radius:20px;padding:22px;box-sizing:border-box">
+        <div style="font-size:20px;font-weight:800;margin-bottom:6px">Universal Smart TV Remote</div>
+        <div style="color:#a1a1aa;font-size:13px;margin-bottom:16px">The Android app could not load its interface.</div>
+        <div style="background:#09090b;border-radius:12px;padding:12px;color:#fda4af;font:12px/1.5 monospace;white-space:pre-wrap;word-break:break-word">${escapeHtml(message)}</div>
+        <button onclick="location.reload()" style="margin-top:14px;padding:11px 16px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700">Reload app</button>
       </div>
     </div>`;
 };
 
+window.addEventListener("error", (event) => {
+  if (event.error) {
+    console.error("Global runtime error:", event.error);
+  }
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+});
+
 const root = createRoot(rootElement, {
-  onCaughtError: (error) => {
-    console.error('React caught error:', error);
-  },
+  onCaughtError: (error) => console.error("React caught error:", error),
   onUncaughtError: (error) => {
-    console.error('React uncaught error:', error);
-    showFatalError(error);
+    console.error("React uncaught error:", error);
+    showBootError(error);
   },
 });
 
-root.render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-);
+rootElement.innerHTML = `
+  <div style="min-height:100vh;background:#050507;color:#a1a1aa;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif">
+    <div style="text-align:center;padding:24px">
+      <div style="font-size:20px;font-weight:800;color:#f4f4f5">Universal Smart TV Remote</div>
+      <div style="margin-top:8px;font-size:13px">Starting app…</div>
+    </div>
+  </div>`;
+
+import("./App.tsx")
+  .then(({ default: App }) => {
+    root.render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>,
+    );
+  })
+  .catch(showBootError);
