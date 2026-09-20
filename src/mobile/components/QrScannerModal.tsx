@@ -58,71 +58,85 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   }, []);
 
   // Process decoded text
-  const handleDecodedText = useCallback((rawText: string) => {
+  const handleDecodedText = useCallback(async (rawText: string) => {
     if (isProcessing) return;
     const parsed = QrPairingService.parsePairingPayload(rawText);
 
-    if (parsed.success && parsed.data) {
-      setIsProcessing(true);
-      try {
-        if ("vibrate" in navigator) {
-          navigator.vibrate(100);
-        }
-      } catch {}
-
-      const { id, name, ip, port, protocol, pin } = parsed.data;
-      setSuccessPayload({ name, ip, pin });
-
-      const scannedDevice: TvDevice = {
-        id,
-        name,
-        brand: "Smart TV",
-        model: "Smart TV Display",
-        ip,
-        port,
-        protocol: protocol || "android_tv_receiver",
-        platform: protocol?.includes("roku")
-          ? "roku"
-          : protocol?.includes("tizen")
-          ? "tizen"
-          : protocol?.includes("webos")
-          ? "webos"
-          : protocol?.includes("sony")
-          ? "sony_bravia"
-          : "android_tv",
-        requiresPairing: true,
-        isPaired: false,
-        isOnline: true,
-        lastSeen: Date.now(),
-        capabilities: {
-          power: "SUPPORTED",
-          navigation: "SUPPORTED",
-          volume: "SUPPORTED",
-          media: "SUPPORTED",
-          keyboard: "SUPPORTED",
-          touchpad: "SUPPORTED",
-          apps: "SUPPORTED",
-          input: "SUPPORTED",
-          voice: "SUPPORTED",
-          channels: "SUPPORTED",
-          ir: "REQUIRES_HARDWARE",
-          bluetooth: "UNKNOWN",
-          wifi: "SUPPORTED",
-        },
-      };
-
-      setTimeout(() => {
-        stopCamera();
-        onTvScannedAndPaired({
-          device: scannedDevice,
-          pin
-        });
-        onClose();
-      }, 1200);
-    } else {
-      setCameraError(parsed.error || "Scanned QR code is not a valid Universal Smart TV pairing code.");
+    if (!parsed.success || !parsed.data) {
+      setCameraError(parsed.error || "Invalid Universal Smart TV QR code.");
       setTimeout(() => setCameraError(null), 3000);
+      return;
     }
+
+    setIsProcessing(true);
+    try {
+      if ("vibrate" in navigator) navigator.vibrate(100);
+    } catch {}
+
+    const { deviceId, name, ip, port, protocol, pairingRequired } = parsed.data;
+
+    // QR parsing is NOT proof that a TV is online. Verify the actual target first.
+    let verified = false;
+    try {
+      const native = (globalThis as any).AndroidRemoteBridge;
+      if (protocol.toLowerCase().includes("android") && native?.ping) {
+        verified = Boolean(native.ping(ip, port));
+      } else {
+        const probe = await fetch("/api/devices/probe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ip, port, protocol })
+        });
+        const result = await probe.json().catch(() => ({}));
+        verified = Boolean(probe.ok && result.success && result.device?.ip === ip);
+      }
+    } catch {
+      verified = false;
+    }
+
+    if (!verified) {
+      setCameraError(`QR is valid, but the TV at ${ip}:${port} could not be verified. Make sure the phone and TV are on the same Wi-Fi and try again.`);
+      setIsProcessing(false);
+      return;
+    }
+
+    const lower = protocol.toLowerCase();
+    const platform =
+      lower.includes("roku") ? "roku" :
+      lower.includes("tizen") || lower.includes("samsung") ? "tizen" :
+      lower.includes("webos") || lower.includes("lg") ? "webos" :
+      lower.includes("sony") ? "sony_bravia" :
+      lower.includes("android") || lower.includes("google") ? "android_tv" :
+      "generic";
+
+    const scannedDevice: TvDevice = {
+      id: deviceId,
+      name,
+      brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : "Android TV",
+      model: "Verified network device",
+      ip,
+      port,
+      protocol,
+      platform: platform as TvDevice["platform"],
+      requiresPairing: pairingRequired,
+      isPaired: false,
+      isOnline: true,
+      lastSeen: Date.now(),
+      capabilities: {
+        power: "UNKNOWN", navigation: "UNKNOWN", volume: "UNKNOWN",
+        media: "UNKNOWN", keyboard: "UNKNOWN", touchpad: "UNKNOWN",
+        apps: "UNKNOWN", input: "UNKNOWN", voice: "UNKNOWN",
+        channels: "UNKNOWN", ir: "REQUIRES_HARDWARE", bluetooth: "UNKNOWN",
+        wifi: "SUPPORTED"
+      }
+    };
+
+    setSuccessPayload({ name, ip, pin: "" });
+    setTimeout(() => {
+      stopCamera();
+      onTvScannedAndPaired({ device: scannedDevice, pin: "" });
+      onClose();
+    }, 700);
   }, [isProcessing, onTvScannedAndPaired, onClose, stopCamera]);
 
   // Frame scanning loop
