@@ -175,6 +175,21 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     setSuccessPayload(null);
 
     try {
+      // On native Android, explicitly trigger the OS camera permission dialog first.
+      const native = (globalThis as any).AndroidRemoteBridge;
+      if (typeof native?.hasCameraPermission === "function" && typeof native?.requestCameraPermission === "function") {
+        if (!native.hasCameraPermission()) {
+          native.requestCameraPermission();
+          const deadline = Date.now() + 5000;
+          while (!native.hasCameraPermission() && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+          if (!native.hasCameraPermission()) {
+            throw Object.assign(new Error("Camera permission is required to scan TV QR codes."), { name: "NotAllowedError" });
+          }
+        }
+      }
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Camera API is not supported in this browser environment. You can upload a photo of the QR code below.");
       }
