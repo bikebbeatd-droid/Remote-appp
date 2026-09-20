@@ -37,6 +37,30 @@ public class MainActivity extends BridgeActivity {
             WebView webView = this.bridge.getWebView();
             remoteBridge = new AndroidRemoteBridge(this);
             webView.addJavascriptInterface(remoteBridge, "AndroidRemoteBridge");
+            requestRequiredRuntimePermissions();
+        }
+    }
+
+    private void requestRequiredRuntimePermissions() {
+        try {
+            java.util.ArrayList<String> permissions = new java.util.ArrayList<>();
+            if (Build.VERSION.SDK_INT >= 33) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+                    permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES);
+                }
+            } else if (Build.VERSION.SDK_INT >= 23) {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+                }
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.CAMERA);
+            }
+            if (!permissions.isEmpty()) {
+                ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), 4108);
+            }
+        } catch (Exception ignored) {
+            // The app remains usable without optional runtime permissions; features report their own unavailable state.
         }
     }
 
