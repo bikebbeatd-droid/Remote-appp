@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { TvDevice } from "../core/types";
 import { Tv, Volume2, VolumeX, Radio, CheckCircle, Wifi, Monitor, Play, AppWindow, QrCode } from "lucide-react";
-import { QrPairingService } from "../pairing/qrService";
+import { buildTvPairingPayload } from "../utils/qrCodeGenerator";
 
 interface TvReceiverScreenProps {
   device: TvDevice | null;
@@ -23,11 +23,22 @@ export const TvReceiverScreen: React.FC<TvReceiverScreenProps> = ({
   const [showPairingQr, setShowPairingQr] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
-  const activePin = pairingPin || (device?.isPaired ? "PAIRED" : "4821");
+  const activePin = pairingPin || "";
 
   useEffect(() => {
-    const payload = QrPairingService.createPairingPayload(device, activePin);
-    QrPairingService.generateQrDataUrl(payload, 200).then(url => setQrDataUrl(url));
+    if (!device) {
+      setQrDataUrl("");
+      return;
+    }
+    try {
+      const { pairingUrl } = buildTvPairingPayload(device);
+      // QR contains connection metadata only; never embed a PIN or token.
+      import("../utils/qrCodeGenerator").then(({ generateQrDataUrl }) =>
+        generateQrDataUrl(pairingUrl, { width: 200 }).then(url => setQrDataUrl(url))
+      );
+    } catch {
+      setQrDataUrl("");
+    }
   }, [device, activePin]);
 
   // Synchronize state when real commands arrive from remote
