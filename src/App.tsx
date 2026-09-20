@@ -175,8 +175,10 @@ export default function App() {
             protocol: "companion_local_http",
             requiresPairing: true,
             isPaired: false,
-            isOnline: true,
-            lastSeen: Date.now(),
+            // The TV is not "online" merely because this APK is running on the TV.
+            // Connection state becomes online only after the selected transport verifies it.
+            isOnline: false,
+            lastSeen: 0,
             capabilities: {
               power: "SUPPORTED", navigation: "SUPPORTED", volume: "SUPPORTED",
               media: "SUPPORTED", keyboard: "SUPPORTED", touchpad: "UNSUPPORTED",
