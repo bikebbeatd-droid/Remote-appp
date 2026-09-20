@@ -33,11 +33,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView webView = this.bridge.getWebView();
-            localRemoteReceiver = new LocalRemoteReceiver((command, value) -> {
+            webView.setBackgroundColor(android.graphics.Color.rgb(9, 9, 11));
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.getSettings().setDomStorageEnabled(true);
+            webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+            webView.getSettings().setAllowFileAccess(true);
+            webView.getSettings().setAllowContentAccess(true);
+            localRemoteReceiver = new LocalRemoteReceiver(this, (command, value) -> {
                 if (remoteBridge != null) remoteBridge.setPendingLocalCommand(command, value);
             });
             localRemoteReceiver.start();
@@ -83,7 +89,7 @@ public class MainActivity extends BridgeActivity {
             if (Build.VERSION.SDK_INT >= 33) {
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.POST_NOTIFICATIONS);
             }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (!isTv && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.RECORD_AUDIO);
             }
             if (!permissions.isEmpty()) {
