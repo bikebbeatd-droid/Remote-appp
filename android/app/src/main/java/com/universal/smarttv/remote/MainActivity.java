@@ -67,6 +67,14 @@ public class MainActivity extends BridgeActivity {
             if (!isTv && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.CAMERA);
             }
+            // Android 17+ protects LAN discovery/control with a dedicated runtime permission.
+            // Use the literal name so older Android SDKs can still build the app.
+            if (Build.VERSION.SDK_INT >= 37) {
+                final String localNetworkPermission = "android.permission.ACCESS_LOCAL_NETWORK";
+                if (ContextCompat.checkSelfPermission(this, localNetworkPermission) != PackageManager.PERMISSION_GRANTED) {
+                    permissions.add(localNetworkPermission);
+                }
+            }
             if (Build.VERSION.SDK_INT >= 31) {
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_SCAN);
                 if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
