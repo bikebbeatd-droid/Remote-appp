@@ -187,7 +187,7 @@ public final class LocalRemoteReceiver {
             return null;
         }
         String value = raw.substring(1, raw.length() - 1);
-        return value.replace("\\", "\u0000").replace("\"", """).replace("\u0000", "\\");
+        return value.replace("\\", "\u0000").replace("\"", "\u0001").replace("\u0000", "\\").replace("\u0001", "\"");
     }
 
     private static String jsonRaw(String json, String key) {
