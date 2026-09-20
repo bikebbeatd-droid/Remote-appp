@@ -532,12 +532,12 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell min-h-screen text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       
       {/* Premium Universal Remote Header */}
-      <header className="sticky top-0 z-40 remote-header border-b border-white/[0.07] bg-black/70 backdrop-blur-2xl">
-        <div className="mx-auto w-full max-w-7xl px-3 sm:px-5 lg:px-7">
-          <div className="flex min-h-16 items-center gap-3 py-2.5">
+      <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-7">
+          <div className="flex min-h-16 items-center gap-3 py-2">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <AppLogo size="sm" showText={false} animated={true} />
               <div className="min-w-0">
@@ -554,7 +554,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="remote-glass flex shrink-0 items-center gap-1.5 rounded-2xl p-1">
+            <div className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-1">
               <button onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-500 active:scale-95" title="Find TVs on Wi-Fi">
                 <Search className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Scan</span>
@@ -616,7 +616,7 @@ export default function App() {
       </header>
 
       {/* Main Workspace Layout */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 overflow-x-hidden">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-3 sm:p-6 lg:p-8 overflow-x-hidden">
         
         {/* Toast Alert */}
         {toast && (

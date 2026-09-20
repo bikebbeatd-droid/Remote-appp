@@ -49,7 +49,7 @@ export class FireTvAdapter implements TvAdapter {
     return {
       online: false,
       latencyMs: 0,
-      error: "No verified generic network protocol is available; probing is disabled."
+      error: "No verified Fire TV network protocol is available; probing is disabled."
     };
   }
 }
@@ -94,7 +94,7 @@ export class GenericAdapter implements TvAdapter {
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string; error?: string }> {
     return {
       success: false,
-      error: "Fire TV remote control requires a verified transport or native bridge; DIAL alone is not sufficient."
+      error: "Generic TV control is disabled until a verified device protocol is identified."
     };
   }
 
@@ -102,7 +102,7 @@ export class GenericAdapter implements TvAdapter {
     return {
       online: false,
       latencyMs: 0,
-      error: "Fire TV remote transport is not verified; network probing is disabled."
+      error: "Generic TV transport is not verified; network probing is disabled."
     };
   }
 }
