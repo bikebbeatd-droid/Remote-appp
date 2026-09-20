@@ -792,9 +792,8 @@ export default function App() {
                       lastCommand={lastCommand}
                       pairingPin={pairingPin}
                       onGeneratePin={() => {
-                        const newPin = generateCryptographicPin();
-                        setPairingPin(newPin);
-                        showToast(`New pairing PIN generated: ${newPin}`, "success");
+                        setPairingPin(null);
+                        showToast("Use the pairing code shown by the actual TV Remote Service when the phone starts pairing.", "warning");
                       }}
                     />
                   </div>
