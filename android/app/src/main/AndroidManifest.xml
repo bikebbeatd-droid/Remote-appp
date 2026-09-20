@@ -55,6 +55,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Normal permission required for real Android IR transmission when the phone has an IR emitter. -->
+    <uses-permission android:name="android.permission.TRANSMIT_IR" />
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
