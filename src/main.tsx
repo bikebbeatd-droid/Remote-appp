@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import App from "./App.tsx";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -47,20 +48,12 @@ const root = createRoot(rootElement, {
   },
 });
 
-rootElement.innerHTML = `
-  <div style="min-height:100vh;background:#050507;color:#a1a1aa;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif">
-    <div style="text-align:center;padding:24px">
-      <div style="font-size:20px;font-weight:800;color:#f4f4f5">Universal Smart TV Remote</div>
-      <div style="margin-top:8px;font-size:13px">Starting app…</div>
-    </div>
-  </div>`;
-
-import("./App.tsx")
-  .then(({ default: App }) => {
-    root.render(
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>,
-    );
-  })
-  .catch(showBootError);
+try {
+  root.render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
+} catch (error) {
+  showBootError(error);
+}
