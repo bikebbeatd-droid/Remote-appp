@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { TvDevice } from "../core/types";
-import { TransportRegistry } from "../transports/TransportRegistry";
+import { AdapterRegistry } from "../adapters/AdapterRegistry";
 import { TokenVault } from "./tokenVault";
 import { Shield, KeyRound, QrCode, CheckCircle2, AlertCircle, RefreshCw, X, ArrowRight, Camera } from "lucide-react";
 import { QrCodeView } from "../components/QrCodeView";
@@ -40,8 +40,9 @@ export const PairingModal: React.FC<PairingModalProps> = ({
 
   const verifyPin = async () => {
     const pin = pinDigits.join("");
-    if (!/^\d{6}$/.test(pin)) {
-      setErrorMsg("Enter the 6-digit PIN currently displayed by the actual TV.");
+    const pinRequired = !["tizen", "roku"].includes(device.platform);
+    if (pinRequired && !/^\d{6}$/.test(pin)) {
+      setErrorMsg("Enter the pairing credential currently requested by the actual TV.");
       return;
     }
 
@@ -49,15 +50,17 @@ export const PairingModal: React.FC<PairingModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const transport = TransportRegistry.getTransportForDevice(device);
-      const res = await transport.authenticate(device, pin);
-      if (!res.success || !res.token) {
+      const adapter = AdapterRegistry.getAdapterForDevice(device);
+      const res = await adapter.authenticate(device, pin, "Universal Smart TV Remote");
+      if (!res.success) {
         setErrorMsg(res.error || "The TV did not confirm the pairing request.");
         return;
       }
 
-      TokenVault.saveToken(device.id, res.token);
-      const updated = { ...device, isPaired: true, token: res.token };
+      if (res.token) {
+        TokenVault.saveToken(device.id, res.token);
+      }
+      const updated = { ...device, isPaired: true, token: res.token || device.token };
       setSuccessMsg("Pairing confirmed by the TV protocol.");
       onPairedSuccess(updated);
       onClose();
