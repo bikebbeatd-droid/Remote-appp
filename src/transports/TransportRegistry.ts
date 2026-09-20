@@ -2,6 +2,7 @@ import { RemoteTransport } from "./types";
 import { AndroidTvReceiverTransport } from "./AndroidTvReceiverTransport";
 import { RokuEcpTransport } from "./RokuEcpTransport";
 import { SamsungTizenTransport, LgWebOsTransport, SonyBraviaTransport } from "./OtherPlatformTransports";
+import { CompanionLocalHttpTransport } from "./CompanionLocalHttpTransport";
 import { TvDevice } from "../core/types";
 
 export class TransportRegistry {
@@ -15,6 +16,7 @@ export class TransportRegistry {
     const tizen = new SamsungTizenTransport();
     const webos = new LgWebOsTransport();
     const sony = new SonyBraviaTransport();
+    const companion = new CompanionLocalHttpTransport();
 
     this.transports.set("android_tv_receiver", androidTv);
     this.transports.set("android_tv", androidTv);
@@ -40,6 +42,10 @@ export class TransportRegistry {
     this.transports.set("sony_bravia", sony);
     this.transports.set("sony_ircc_rest", sony);
     this.transports.set("sony bravia ircc", sony);
+
+    this.transports.set("companion_local_http", companion);
+    this.transports.set("companion_web_receiver", companion);
+    this.transports.set("universal smart tv remote receiver", companion);
   }
 
   static getTransportForDevice(device: TvDevice): RemoteTransport {
