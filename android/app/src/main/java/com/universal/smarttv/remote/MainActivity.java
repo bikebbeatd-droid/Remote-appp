@@ -1,6 +1,9 @@
 package com.universal.smarttv.remote;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.hardware.ConsumerIrManager;
 import android.os.Bundle;
 import android.app.UiModeManager;
@@ -10,6 +13,8 @@ import android.net.nsd.NsdServiceInfo;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -37,14 +42,16 @@ public class MainActivity extends BridgeActivity {
 
     public static class AndroidRemoteBridge {
         private final Context context;
+        private final Activity activity;
         private final ConsumerIrManager irManager;
         private final AndroidTvRemoteV2 androidTvRemote;
         private final NsdManager nsdManager;
         private final Map<String, NsdServiceInfo> androidTvServices = new ConcurrentHashMap<>();
         private NsdManager.DiscoveryListener discoveryListener;
 
-        public AndroidRemoteBridge(Context context) {
-            this.context = context.getApplicationContext();
+        public AndroidRemoteBridge(Activity activity) {
+            this.activity = activity;
+            this.context = activity.getApplicationContext();
             ConsumerIrManager manager = null;
             try {
                 manager = (ConsumerIrManager) context.getSystemService(Context.CONSUMER_IR_SERVICE);
@@ -57,6 +64,23 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean isAvailable() {
             return true;
+        }
+
+        @JavascriptInterface
+        public boolean hasCameraPermission() {
+            return Build.VERSION.SDK_INT < 23 ||
+                ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public boolean requestCameraPermission() {
+            try {
+                if (hasCameraPermission()) return true;
+                ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CAMERA}, 4107);
+                return false;
+            } catch (Exception e) {
+                return false;
+            }
         }
 
         @JavascriptInterface
