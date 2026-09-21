@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { validateTvTarget } from "../src/core/networkValidation.js";
+import { QrPairingService } from "../src/pairing/qrService.js";
 
 describe("Network Validation & SSRF Guard Tests", () => {
   it("accepts valid private LAN IP addresses", () => {
@@ -48,5 +49,41 @@ describe("Network Validation & SSRF Guard Tests", () => {
     assert.equal(validateTvTarget("192.168.1.100", 65536).valid, false);
     assert.equal(validateTvTarget("192.168.1.100", 8060).valid, true);
     assert.equal(validateTvTarget("192.168.1.100", 65535).valid, true);
+  });
+});
+
+
+describe("TV QR validation", () => {
+  it("accepts a fresh private-LAN TV QR payload", () => {
+    const raw = JSON.stringify({
+      type: "USTV_PAIR",
+      version: 2,
+      deviceId: "tv-test",
+      name: "Test TV",
+      ip: "192.168.1.50",
+      port: 8060,
+      protocol: "roku_ecp",
+      pairingRequired: false,
+      timestamp: Date.now()
+    });
+    const result = QrPairingService.parsePairingPayload(raw);
+    assert.equal(result.success, true);
+    assert.equal(result.data?.ip, "192.168.1.50");
+  });
+
+  it("rejects localhost and expired TV QR payloads", () => {
+    const localhost = QrPairingService.parsePairingPayload(JSON.stringify({
+      type: "USTV_PAIR", version: 2, deviceId: "tv-test", name: "Test TV",
+      ip: "127.0.0.1", port: 8060, protocol: "roku_ecp",
+      pairingRequired: false, timestamp: Date.now()
+    }));
+    assert.equal(localhost.success, false);
+
+    const expired = QrPairingService.parsePairingPayload(JSON.stringify({
+      type: "USTV_PAIR", version: 2, deviceId: "tv-test", name: "Test TV",
+      ip: "192.168.1.50", port: 8060, protocol: "roku_ecp",
+      pairingRequired: false, timestamp: Date.now() - 11 * 60 * 1000
+    }));
+    assert.equal(expired.success, false);
   });
 });
