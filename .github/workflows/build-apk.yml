@@ -12,7 +12,6 @@ concurrency:
   group: android-apk-build-${{ github.ref }}
   cancel-in-progress: true
 
-
 env:
   ANDROID_HOME: /usr/local/lib/android/sdk
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -35,17 +34,6 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-
-      - name: Verify Android project toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          java -version
-          node --version
-          npm --version
-          test -f android/gradle/wrapper/gradle-wrapper.properties
-          grep -q 'gradle-8.14.3-all.zip' android/gradle/wrapper/gradle-wrapper.properties
-          grep -q 'com.android.tools.build:gradle:8.13.0' android/build.gradle
 
       - name: Setup Android SDK packages
         shell: bash
@@ -72,85 +60,92 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
-      - name: Ensure Android debug keystore exists
+      - name: Configure stable release signing when secrets are available
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            mkdir -p android/app/keystore
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/keystore/release.keystore
+            echo "ANDROID_KEYSTORE_FILE=keystore/release.keystore" >> "$GITHUB_ENV"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
-          test -s "$HOME/.android/debug.keystore"
 
-      - name: Build debug APK
+      - name: Build installable APK
         working-directory: android
+        env:
+          VERSION_NAME: ${{ github.run_number }}.0.0
+          VERSION_CODE: ${{ github.run_number }}
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            ./gradlew :app:assembleRelease --stacktrace --no-daemon
+          else
+            mkdir -p "$HOME/.android"
+            if [ ! -f "$HOME/.android/debug.keystore" ]; then
+              keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          fi
 
       - name: Verify APK and checksum
         shell: bash
         run: |
           set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then APK=$(find android/app/build/outputs/apk/release -type f -name "*.apk" | head -n 1); else APK="android/app/build/outputs/apk/debug/app-debug.apk"; fi
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
-          test -x "$APKSIGNER"
-          "$APKSIGNER" verify --verbose "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
           sha256sum "$APK" | tee apk-sha256.txt
-          echo "APK size: $(du -h "$APK" | cut -f1)"
+          echo "APK=$APK" >> "$GITHUB_ENV"
 
-      # APK distribution stays outside the app. GitHub Actions artifacts/releases
-      # are the only distribution outputs produced by CI.
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Remote-appp-debug-apk-${{ github.run_number }}
+          name: Remote-appp-installable-apk
           path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
+            ${{ env.APK }}
             apk-sha256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release APK
+      - name: Publish one rolling GitHub Release APK
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          TAG="latest"
           ASSET="Universal-Smart-TV-Remote.apk"
           cp "$APK" "$ASSET"
-          TAG="latest"
-          # Keep one stable download URL and replace only its APK asset.
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ASSET" --clobber
-            gh release edit "$TAG" --target "${{ github.sha }}" --title "Remote-appp Latest APK" \
-              --notes "Latest verified debug APK for testing. Stable download URL; asset is replaced only after a successful build. APK is distributed only through GitHub Actions/Release; it is not embedded in the app.\n\nCommit: ${{ github.sha }}\nNode.js 22 / Java 21 / AGP 8.13.0 / Gradle 8.14.3 / compileSdk 36 / targetSdk 36 / minSdk 24."
+            gh release upload "$TAG" "$ASSET" apk-sha256.txt --clobber
+            gh release edit "$TAG" --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest verified installable APK. One rolling release is maintained; individual build-number releases are not created."
           else
-            gh release create "$TAG" "$ASSET" \
-              --target "${{ github.sha }}" \
-              --title "Remote-appp Latest APK" \
-            --notes "Latest verified debug APK for testing. This rolling release is replaced by the newest successful build. APK is distributed only through GitHub Actions/Release; it is not embedded in the app.\n\nCommit: ${{ github.sha }}\nNode.js 22 / Java 21 / AGP 8.13.0 / Gradle 8.14.3 / compileSdk 36 / targetSdk 36 / minSdk 24."
+            gh release create "$TAG" "$ASSET" apk-sha256.txt --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest verified installable APK. One rolling release is maintained."
+          fi
+          gh release view "$TAG" --json assets --jq '.assets[].name' | while IFS= read -r name; do
+            if [ "$name" != "$ASSET" ] && [[ "$name" == *.apk ]]; then gh release delete-asset "$TAG" "$name" --yes || true; fi
+          done
 
       - name: Report build result
         if: always()
         run: |
           echo "## Android APK Build" >> "$GITHUB_STEP_SUMMARY"
-          echo "- APK distribution: GitHub Actions artifact + GitHub Release only" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Node.js: 22 LTS" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Java: 21" >> "$GITHUB_STEP_SUMMARY"
-          echo "- AGP: 8.13.0" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Gradle: 8.14.3" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Android SDK: compile/target 36, min 24" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then echo "- APK generated: yes" >> "$GITHUB_STEP_SUMMARY"; else echo "- APK generated: no" >> "$GITHUB_STEP_SUMMARY"; fi
-          if [ -f apk-sha256.txt ]; then echo "- SHA-256: $(cat apk-sha256.txt)" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo "- One rolling GitHub Release: latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Stable release signing used when ANDROID_KEYSTORE_* secrets are configured" >> "$GITHUB_STEP_SUMMARY"
+          echo "- APK distribution: GitHub Release + Actions artifact" >> "$GITHUB_STEP_SUMMARY"
