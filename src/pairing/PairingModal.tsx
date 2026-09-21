@@ -17,7 +17,7 @@ interface PairingModalProps {
 export const PairingModal: React.FC<PairingModalProps> = ({
   device, isOpen, onClose, onPairedSuccess, onOpenScanner
 }) => {
-  const [pinDigits, setPinDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [pairingCredential, setPairingCredential] = useState("");
   const [activeTab, setActiveTab] = useState<"pin" | "qr">("pin");
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -30,18 +30,15 @@ export const PairingModal: React.FC<PairingModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleDigitChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    const next = [...pinDigits];
-    next[index] = digit;
-    setPinDigits(next);
+  const handleCredentialChange = (value: string) => {
+    setPairingCredential(value.slice(0, 128));
     setErrorMsg(null);
   };
 
   const pinRequiredForUi = Boolean(device.requiresPairing && !device.isPaired);
 
   const verifyPin = async () => {
-    const pin = pinDigits.join("");
+    const pin = pairingCredential.trim();
     if (pinRequiredForUi && !pin) {
       setErrorMsg("Enter the pairing credential currently requested by the actual TV.");
       return;
@@ -97,15 +94,23 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         <div className="p-6">
           {activeTab === "pin" ? (
             <div className="space-y-5">
-              <div className="text-center"><p className="text-sm text-zinc-300 font-medium">Enter the PIN shown on the actual TV</p><p className="text-xs text-zinc-500 mt-1">The app sends this PIN through the selected TV protocol and waits for confirmation.</p></div>
-              <div className="flex justify-center gap-2">
-                {pinDigits.map((digit, i) => (
-                  <input key={i} id={`pin-input-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={e => handleDigitChange(i, e.target.value)} className="w-11 h-13 text-center text-2xl font-mono font-bold bg-zinc-950 border border-zinc-700 rounded-xl text-indigo-300 focus:border-indigo-500 outline-none" />
-                ))}
+              <div className="text-center"><p className="text-sm text-zinc-300 font-medium">Enter the pairing code or credential shown/requested by the actual TV</p><p className="text-xs text-zinc-500 mt-1">The app sends this PIN through the selected TV protocol and waits for confirmation.</p></div>
+              <div className="flex justify-center">
+                <input
+                  id="tv-pairing-credential-input"
+                  type="text"
+                  inputMode={pinRequiredForUi ? "numeric" : "text"}
+                  autoComplete="one-time-code"
+                  maxLength={128}
+                  value={pairingCredential}
+                  onChange={e => handleCredentialChange(e.target.value)}
+                  placeholder={pinRequiredForUi ? "Enter the code shown by the TV" : "PIN/password if the TV requests one"}
+                  className="w-full h-13 text-center text-lg font-mono font-bold bg-zinc-950 border border-zinc-700 rounded-xl text-indigo-300 focus:border-indigo-500 outline-none px-4"
+                />
               </div>
               {errorMsg && <div className="p-3 bg-rose-950/50 border border-rose-800/80 rounded-xl flex gap-2 text-xs text-rose-300"><AlertCircle className="w-4 h-4 shrink-0" />{errorMsg}</div>}
               {successMsg && <div className="p-3 bg-emerald-950/50 border border-emerald-800/80 rounded-xl flex gap-2 text-xs text-emerald-300"><CheckCircle2 className="w-4 h-4 shrink-0" />{successMsg}</div>}
-              <button onClick={verifyPin} disabled={isVerifying || (pinRequiredForUi && pinDigits.some(d => !d))} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium rounded-xl flex items-center justify-center gap-2">
+              <button onClick={verifyPin} disabled={isVerifying || (pinRequiredForUi && !pairingCredential.trim())} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-medium rounded-xl flex items-center justify-center gap-2">
                 {isVerifying ? <><RefreshCw className="w-4 h-4 animate-spin" />Verifying with TV...</> : <>Confirm Pairing<ArrowRight className="w-4 h-4" /></>}
               </button>
             </div>
