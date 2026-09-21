@@ -34,12 +34,16 @@ function validatePayload(raw: any): { success: boolean; error?: string; data?: T
   const port = Number(raw.port);
   const protocol = typeof raw.protocol === "string" ? raw.protocol.trim() : "";
   const deviceId = typeof raw.deviceId === "string" ? raw.deviceId.trim() : "";
-  const name = typeof raw.name === "string" ? raw.name.trim() : "Smart TV";
+  const name = typeof raw.name === "string" ? raw.name.trim().slice(0, 100) : "Smart TV";
+  const timestamp = Number(raw.timestamp);
 
-  if (!deviceId || !protocol || !ip) return { success: false, error: "TV QR is missing verified device connection information." };
+  if (!deviceId || deviceId.length > 128 || !protocol || protocol.length > 100 || !ip) return { success: false, error: "TV QR is missing verified device connection information." };
   if (ip === "127.0.0.1" || ip === "localhost") return { success: false, error: "127.0.0.1/localhost is the phone backend, not the TV." };
   if (!isPrivateLanIpv4(ip)) return { success: false, error: "TV QR must contain a private LAN IPv4 address." };
   if (!Number.isInteger(port) || port < 1 || port > 65535) return { success: false, error: "TV QR contains an invalid port." };
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return { success: false, error: "TV QR is missing a valid timestamp." };
+  const maxAgeMs = 10 * 60 * 1000;
+  if (Math.abs(Date.now() - timestamp) > maxAgeMs) return { success: false, error: "TV QR has expired. Generate a fresh QR code." };
 
   const target = validateTvTarget(ip, port);
   if (!target.valid) return { success: false, error: target.error || "Unsafe TV target." };
@@ -55,7 +59,7 @@ function validatePayload(raw: any): { success: boolean; error?: string; data?: T
       port,
       protocol,
       pairingRequired: Boolean(raw.pairingRequired),
-      timestamp: Number(raw.timestamp) || 0
+      timestamp
     }
   };
 }
