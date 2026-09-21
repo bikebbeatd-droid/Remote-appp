@@ -23,7 +23,6 @@ import { GlobalRemoteLibraryModal } from "./components/GlobalRemoteLibraryModal"
 import { CompatibilityCenterModal } from "./components/CompatibilityCenterModal";
 import { IrBlasterModal } from "./ir/IrBlasterModal";
 import { MobileQrScannerModal } from "./mobile/components/MobileQrScannerModal";
-import { DownloadApkModal } from "./components/modals/DownloadApkModal";
 import { OnboardingFlow } from "./components/onboarding/OnboardingFlow";
 import { CloudSyncModal } from "./components/modals/CloudSyncModal";
 import { auth, onAuthChanged, subscribeToUserDevices, syncDeviceToCloud } from "./core/firebase";
@@ -58,7 +57,6 @@ import {
   Cloud,
   CloudCheck,
   RotateCcw,
-  Download
 } from "lucide-react";
 
 export type InterfaceViewMode = "mobile" | "tv" | "dual";
@@ -98,7 +96,6 @@ export default function App() {
   const [compatibilityCenterOpen, setCompatibilityCenterOpen] = useState(false);
   const [compatProfileId, setCompatProfileId] = useState<string | undefined>(undefined);
   const [irBlasterOpen, setIrBlasterOpen] = useState(false);
-  const [downloadApkOpen, setDownloadApkOpen] = useState(false);
   const [cloudSyncOpen, setCloudSyncOpen] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(auth?.currentUser ?? null);
   const [selectedLibraryProfile, setSelectedLibraryProfile] = useState<DeviceProfile | null>(null);
@@ -642,9 +639,6 @@ export default function App() {
             <button onClick={() => setCloudSyncOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
               {firebaseUser ? <CloudCheck className="h-3.5 w-3.5 text-emerald-400" /> : <Cloud className="h-3.5 w-3.5 text-indigo-400" />} Cloud Sync
             </button>
-            <button onClick={() => setDownloadApkOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/10">
-              <Download className="h-3.5 w-3.5" /> APK Release
-            </button>
             <div className="ml-auto flex shrink-0 items-center rounded-xl border border-zinc-800 bg-zinc-900 p-1">
               {([["mobile", Smartphone, "Phone"], ["tv", Monitor, "TV"], ["dual", Columns, "Dual"]] as const).map(([mode, Icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition ${viewMode === mode ? "bg-white text-zinc-950" : "text-zinc-400 hover:text-white"}`} title={`Switch to ${label} view`}>
@@ -722,7 +716,6 @@ export default function App() {
                   onOpenRemoteLibrary={() => setRemoteLibraryOpen(true)}
                   onOpenCompatibilityCenter={() => setCompatibilityCenterOpen(true)}
                   onOpenIrBlaster={() => setIrBlasterOpen(true)}
-                  onOpenDownloadApk={() => setDownloadApkOpen(true)}
                   onUnsupportedAttempt={(reason) => showToast(reason, "warning")}
                 />
               </div>
@@ -955,11 +948,6 @@ export default function App() {
         isOpen={cloudSyncOpen}
         onClose={() => setCloudSyncOpen(false)}
         localDevices={devices}
-      />
-
-      <DownloadApkModal
-        isOpen={downloadApkOpen}
-        onClose={() => setDownloadApkOpen(false)}
       />
 
       <ShareProfileModal
