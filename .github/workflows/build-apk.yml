@@ -85,7 +85,7 @@ jobs:
       - name: Build installable APK
         working-directory: android
         env:
-          VERSION_NAME: ${{ github.run_number }}.0.0
+          VERSION_NAME: 1.0.${{ github.run_number }}
           VERSION_CODE: ${{ github.run_number }}
         shell: bash
         run: |
@@ -131,12 +131,14 @@ jobs:
           set -euo pipefail
           TAG="latest"
           ASSET="Universal-Smart-TV-Remote.apk"
+          SIGNING_MODE="${{ steps.signing.outputs.signed }}"
+          if [ "$SIGNING_MODE" = "true" ]; then SIGNING_NOTE="Stable release signing"; else SIGNING_NOTE="Debug signing; uninstall older builds signed with a different key before installing"; fi
           cp "$APK" "$ASSET"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" apk-sha256.txt --clobber
-            gh release edit "$TAG" --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest verified installable APK. One rolling release is maintained; individual build-number releases are not created."
+            gh release edit "$TAG" --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest build-verified installable APK. One rolling release is maintained. $SIGNING_NOTE."
           else
-            gh release create "$TAG" "$ASSET" apk-sha256.txt --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest verified installable APK. One rolling release is maintained."
+            gh release create "$TAG" "$ASSET" apk-sha256.txt --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest build-verified installable APK. One rolling release is maintained. $SIGNING_NOTE."
           fi
           gh release view "$TAG" --json assets --jq '.assets[].name' | while IFS= read -r name; do
             if [ "$name" != "$ASSET" ] && [[ "$name" == *.apk ]]; then gh release delete-asset "$TAG" "$name" --yes || true; fi
@@ -147,5 +149,6 @@ jobs:
         run: |
           echo "## Android APK Build" >> "$GITHUB_STEP_SUMMARY"
           echo "- One rolling GitHub Release: latest" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Stable release signing used when ANDROID_KEYSTORE_* secrets are configured" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Signing: ${{ steps.signing.outputs.signed == 'true' && 'stable release keystore' || 'runner debug keystore' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- If stable signing secrets are absent, this is a debug-signed test APK and cannot update an APK signed with a different certificate." >> "$GITHUB_STEP_SUMMARY"
           echo "- APK distribution: GitHub Release + Actions artifact" >> "$GITHUB_STEP_SUMMARY"
