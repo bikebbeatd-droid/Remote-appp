@@ -6,37 +6,24 @@ A complete, production-ready, multi-protocol Smart TV remote control platform an
 
 ## 📱 Android APK Release System
 
-The repository features an automated, production-ready CI/CD release system powered by **GitHub Actions**.
+The repository uses one GitHub Actions workflow for Android builds. Every successful push to `main` runs lint, tests, web build, Capacitor sync, Gradle APK build, APK integrity/signature verification, checksum generation, and updates one rolling GitHub Release named **latest**.
 
-### Pipeline Architecture:
+There is no in-app APK downloader. APK files are distributed only through GitHub Releases/Actions artifacts.
 
-```
-Git Tag (v*) / Manual Dispatch
-       ↓
-GitHub Actions Runner (Ubuntu)
-       ↓
-JDK 21 + Android SDK Setup
-       ↓
-npm ci → npm run lint → npm test → npm run build
-       ↓
-Capacitor Native Sync (npx cap sync android)
-       ↓
-Gradle Build (assembleRelease with Keystore or Unsigned fallback)
-       ↓
-APK Verification (Integrity + Size + SHA-256 Checksum)
-       ↓
-Create GitHub Release + Attach Binary (Remote-appp-vX.Y.Z.apk + SHA256SUMS.txt)
-       ↓
-Web App "Download App" Modal pulls live release via /api/releases/latest
-       ↓
-End-user downloads verified APK
-```
+### Signing
+
+- If the four `ANDROID_KEYSTORE_*` GitHub Actions secrets are configured, the APK is signed with the stable release keystore.
+- If they are not configured, CI produces a debug-signed testing APK. Because Android updates require a compatible signing certificate, a debug APK signed by a newly generated runner key may require uninstalling the older build before installation. Android's official guidance requires APKs to be signed and recommends protecting the private release key. citeturn0search0turn0search2
+
+### Testing download
+
+Use the single **latest** release. Do not use old numbered debug releases.
 
 ---
 
-## 🚀 How to Create a Release
+## 🚀 Build and Release
 
-### Method 1: Git Release Tag (Recommended)
+### Automatic rolling release
 
 1. Ensure all code changes and tests pass locally:
    ```bash
