@@ -167,7 +167,7 @@ public final class LocalRemoteReceiver {
     }
 
     private static boolean isAllowedLanPeer(InetAddress address) {
-        if (address == null || address.isLoopback() || address.isAnyLocalAddress() || address.isLinkLocalAddress()) {
+        if (address == null || address.isLoopbackAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()) {
             return false;
         }
         if (address instanceof Inet4Address) {
