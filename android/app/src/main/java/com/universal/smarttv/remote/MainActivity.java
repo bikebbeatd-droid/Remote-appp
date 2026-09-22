@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
                 if (remoteBridge != null) remoteBridge.setPendingLocalCommand(command, value);
             });
             localRemoteReceiver.start();
+            registerLocalRemoteService();
             remoteBridge = new AndroidRemoteBridge(this, localRemoteReceiver);
             webView.addJavascriptInterface(remoteBridge, "AndroidRemoteBridge");
             requestRequiredRuntimePermissions();
@@ -112,6 +113,8 @@ public class MainActivity extends BridgeActivity {
         private volatile String pendingValue = null;
         private volatile long pendingTimestamp = 0L;
         private NsdManager.DiscoveryListener discoveryListener;
+        private NsdManager.RegistrationListener localReceiverRegistrationListener;
+        private NsdServiceInfo localReceiverService;
 
         public AndroidRemoteBridge(Activity activity, LocalRemoteReceiver localReceiver) {
             this.activity = activity;
@@ -124,6 +127,26 @@ public class MainActivity extends BridgeActivity {
             this.irManager = manager;
             this.androidTvRemote = new AndroidTvRemoteV2(this.context);
             this.nsdManager = (NsdManager) this.context.getSystemService(Context.NSD_SERVICE);
+        }
+
+        private synchronized void registerLocalRemoteService() {
+            if (nsdManager == null || localRemoteReceiver == null || !localRemoteReceiver.isRunning()) return;
+            try {
+                if (localReceiverRegistrationListener != null) return;
+                localReceiverService = new NsdServiceInfo();
+                localReceiverService.setServiceName("Universal Smart TV Remote");
+                localReceiverService.setServiceType("_ustvremote._tcp");
+                localReceiverService.setPort(localRemoteReceiver.getPort());
+                localReceiverRegistrationListener = new NsdManager.RegistrationListener() {
+                    @Override public void onServiceRegistered(NsdServiceInfo serviceInfo) { }
+                    @Override public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) { localReceiverRegistrationListener = null; }
+                    @Override public void onServiceUnregistered(NsdServiceInfo serviceInfo) { localReceiverRegistrationListener = null; }
+                    @Override public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode) { }
+                };
+                nsdManager.registerService(localReceiverService, NsdManager.PROTOCOL_DNS_SD, localReceiverRegistrationListener);
+            } catch (Exception e) {
+                localReceiverRegistrationListener = null;
+            }
         }
 
         @JavascriptInterface
