@@ -43,7 +43,7 @@ public class MainActivity extends BridgeActivity {
             webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             webView.getSettings().setAllowFileAccess(true);
             webView.getSettings().setAllowContentAccess(true);
-            localRemoteReceiver = new LocalRemoteReceiver(this, (command, value) -> {
+            localRemoteReceiver = new LocalRemoteReceiver((command, value) -> {
                 if (remoteBridge != null) remoteBridge.setPendingLocalCommand(command, value);
             });
             localRemoteReceiver.start();
