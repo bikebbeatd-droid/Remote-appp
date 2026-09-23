@@ -396,7 +396,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   Verified and ready to connect to <strong className="text-white">{successPayload.name}</strong> ({successPayload.ip})
                 </p>
                 <div className="inline-block mt-2 px-3 py-1 bg-black/40 rounded-lg text-emerald-300 font-mono text-sm font-bold border border-emerald-500/30">
-                  PIN: {successPayload.pin}
+                  Verified: {successPayload.paired ? "Paired" : "Not paired"}
                 </div>
               </div>
             </div>
