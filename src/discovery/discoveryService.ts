@@ -52,7 +52,7 @@ export class DiscoveryService {
             protocol: "Android TV Remote Service v2",
             requiresPairing: !storedToken,
             isPaired: !!storedToken,
-            isOnline: true,
+            isOnline: false,
             token: storedToken || undefined,
             // mDNS discovery proves that an Android TV Remote v2 service is advertised;
             // it does not prove that individual remote capabilities are usable. Capabilities
