@@ -47,8 +47,8 @@ public class MainActivity extends BridgeActivity {
                 if (remoteBridge != null) remoteBridge.setPendingLocalCommand(command, value);
             });
             localRemoteReceiver.start();
-            registerLocalRemoteService();
             remoteBridge = new AndroidRemoteBridge(this, localRemoteReceiver);
+            remoteBridge.registerLocalRemoteService();
             webView.addJavascriptInterface(remoteBridge, "AndroidRemoteBridge");
             requestRequiredRuntimePermissions();
         }
@@ -130,13 +130,13 @@ public class MainActivity extends BridgeActivity {
         }
 
         private synchronized void registerLocalRemoteService() {
-            if (nsdManager == null || localRemoteReceiver == null || !localRemoteReceiver.isRunning()) return;
+            if (nsdManager == null || localReceiver == null || !localReceiver.isRunning()) return;
             try {
                 if (localReceiverRegistrationListener != null) return;
                 localReceiverService = new NsdServiceInfo();
                 localReceiverService.setServiceName("Universal Smart TV Remote");
                 localReceiverService.setServiceType("_ustvremote._tcp");
-                localReceiverService.setPort(localRemoteReceiver.getPort());
+                localReceiverService.setPort(localReceiver.getPort());
                 localReceiverRegistrationListener = new NsdManager.RegistrationListener() {
                     @Override public void onServiceRegistered(NsdServiceInfo serviceInfo) { }
                     @Override public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) { localReceiverRegistrationListener = null; }
