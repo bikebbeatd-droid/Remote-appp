@@ -41,7 +41,8 @@ export function buildTvPairingPayload(device: TvDevice | null): {
   params.set("pairing", device.requiresPairing ? "1" : "0");
   params.set("ts", String(Date.now()));
 
-  if (!isUsableTvIp(device.ip)) throw new Error("A real TV LAN IP is required.");\n  params.set("ip", device.ip);
+  if (!isUsableTvIp(device.ip)) throw new Error("A real TV LAN IP is required.");
+  params.set("ip", device.ip);
   if (Number.isInteger(device.port) && device.port > 0 && device.port <= 65535) {
     params.set("port", String(device.port));
   }
