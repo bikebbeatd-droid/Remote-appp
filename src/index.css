@@ -160,3 +160,33 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+/* AMOLED mode: reduce OLED power use while preserving the existing dark UI. */
+.amoled-mode,
+.amoled-mode body {
+  background: #000 !important;
+}
+
+.amoled-mode {
+  --remote-bg: #000;
+  --remote-panel: rgba(4, 4, 6, 0.94);
+  --remote-panel-strong: #050507;
+}
+
+.amoled-mode .bg-zinc-950 {
+  background-color: #000 !important;
+}
+
+.amoled-mode .bg-zinc-900 {
+  background-color: #030305 !important;
+}
+
+.amoled-mode .bg-zinc-800 {
+  background-color: #07070a !important;
+}
+
+.amoled-mode .border-zinc-800,
+.amoled-mode .border-zinc-800\/80 {
+  border-color: rgba(255,255,255,0.07) !important;
+}
