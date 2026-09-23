@@ -36,7 +36,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [successPayload, setSuccessPayload] = useState<{ name: string; ip: string; pin: string } | null>(null);
+  const [successPayload, setSuccessPayload] = useState<{ name: string; ip: string; paired: boolean } | null>(null);
   const [manualCode, setManualCode] = useState("");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -136,7 +136,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       lastSeen: Date.now()
     };
 
-    setSuccessPayload({ name, ip, pin: "" });
+    setSuccessPayload({ name, ip, paired: false });
     setTimeout(() => {
       stopCamera();
       onTvScannedAndPaired({ device: verifiedDevice, pin: "" });
@@ -393,7 +393,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               <div className="space-y-1">
                 <h4 className="text-xl font-black text-white">TV QR Code Verified!</h4>
                 <p className="text-xs text-emerald-200">
-                  Connecting to <strong className="text-white">{successPayload.name}</strong> ({successPayload.ip})
+                  Verified and ready to connect to <strong className="text-white">{successPayload.name}</strong> ({successPayload.ip})
                 </p>
                 <div className="inline-block mt-2 px-3 py-1 bg-black/40 rounded-lg text-emerald-300 font-mono text-sm font-bold border border-emerald-500/30">
                   PIN: {successPayload.pin}
