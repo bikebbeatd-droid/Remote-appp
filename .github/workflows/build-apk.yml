@@ -131,17 +131,19 @@ jobs:
           set -euo pipefail
           TAG="latest"
           ASSET="Universal-Smart-TV-Remote.apk"
+          VERSIONED_ASSET="Universal-Smart-TV-Remote-${{ github.run_number }}.apk"
           SIGNING_MODE="${{ steps.signing.outputs.signed }}"
           if [ "$SIGNING_MODE" = "true" ]; then SIGNING_NOTE="Stable release signing"; else SIGNING_NOTE="Debug signing; uninstall older builds signed with a different key before installing"; fi
           cp "$APK" "$ASSET"
+          cp "$APK" "$VERSIONED_ASSET"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ASSET" apk-sha256.txt --clobber
+            gh release upload "$TAG" "$ASSET" "$VERSIONED_ASSET" apk-sha256.txt --clobber
             gh release edit "$TAG" --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest build-verified installable APK. One rolling release is maintained. $SIGNING_NOTE."
           else
-            gh release create "$TAG" "$ASSET" apk-sha256.txt --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest build-verified installable APK. One rolling release is maintained. $SIGNING_NOTE."
+            gh release create "$TAG" "$ASSET" "$VERSIONED_ASSET" apk-sha256.txt --target "${{ github.sha }}" --title "Remote-appp Latest APK" --notes "Latest build-verified installable APK. One rolling release is maintained. $SIGNING_NOTE."
           fi
           gh release view "$TAG" --json assets --jq '.assets[].name' | while IFS= read -r name; do
-            if [ "$name" != "$ASSET" ] && [[ "$name" == *.apk ]]; then gh release delete-asset "$TAG" "$name" --yes || true; fi
+            if [ "$name" != "$ASSET" ] && [ "$name" != "$VERSIONED_ASSET" ] && [[ "$name" == *.apk ]]; then gh release delete-asset "$TAG" "$name" --yes || true; fi
           done
 
       - name: Report build result
