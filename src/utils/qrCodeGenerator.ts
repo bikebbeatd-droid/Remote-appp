@@ -39,6 +39,7 @@ export function buildTvPairingPayload(device: TvDevice | null): {
   params.set("name", device.name);
   params.set("proto", device.protocol);
   params.set("pairing", device.requiresPairing ? "1" : "0");
+  params.set("ts", String(Date.now()));
 
   if (isUsableTvIp(device.ip)) params.set("ip", device.ip);
   if (Number.isInteger(device.port) && device.port > 0 && device.port <= 65535) {
