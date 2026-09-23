@@ -69,6 +69,9 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [viewMode, setViewMode] = useState<InterfaceViewMode>("mobile");
   const [connectionState, setConnectionState] = useState<ConnectionState>("DISCONNECTED");
+  const [amoledMode, setAmoledMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("ustv_amoled_mode") === "1"; } catch { return false; }
+  });
 
   // Companion & Telemetry State
   const [lastCommand, setLastCommand] = useState<{ command: string; value?: any; timestamp: string } | null>(null);
@@ -390,6 +393,29 @@ export default function App() {
     globalConnectionManager.setActiveDevice(currentDevice);
   }, [currentDeviceId, currentDevice?.isPaired, currentDevice?.token, currentDevice?.ip]);
 
+  useEffect(() => {
+    try { localStorage.setItem("ustv_amoled_mode", amoledMode ? "1" : "0"); } catch {}
+  }, [amoledMode]);
+
+  const handleQuickReconnect = async () => {
+    if (!currentDevice) {
+      showToast("Select a verified TV first.", "warning");
+      return;
+    }
+    if (currentDevice.requiresPairing && !currentDevice.isPaired) {
+      setPairingTarget(currentDevice);
+      showToast("Pair this TV first.", "warning");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const ok = await globalConnectionManager.connect(currentDevice);
+      showToast(ok ? "TV connection verified." : "TV connection failed. Check the TV and Wi-Fi.", ok ? "success" : "error");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
@@ -570,7 +596,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className={`min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white ${amoledMode ? "amoled-mode" : ""}`}>
       
       {/* Premium Universal Remote Header */}
       <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl">
@@ -626,6 +652,10 @@ export default function App() {
             </button>
             <button onClick={() => setScenesOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
               <Layers className="h-3.5 w-3.5 text-cyan-400" /> Scenes
+            </button>
+            <button onClick={handleQuickReconnect} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-[11px] font-semibold text-cyan-300 transition hover:bg-cyan-500/10 disabled:opacity-50" title="Verify the selected TV connection">
+              <RotateCcw className={`h-3.5 w-3.5 ${isSending ? "animate-spin" : ""}`} />
+              <span>Reconnect</span>
             </button>
             <button onClick={() => setDiagnosticsOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-semibold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
               <Activity className="h-3.5 w-3.5 text-emerald-400" /> Diagnostics
