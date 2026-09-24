@@ -38,11 +38,20 @@ export class RokuEcpTransport implements RemoteTransport {
   async connect(device: TvDevice): Promise<{ success: boolean; latencyMs: number; error?: string }> {
     const startTime = performance.now();
     try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: device.id, command: "INFO" })
-      });
+      const path = command === "LAUNCH_APP" && value
+        ? `/launch/${encodeURIComponent(String(value))}`
+        : command === "TEXT_INPUT" && value
+          ? ""
+          : `/keypress/${encodeURIComponent(String(rokuKey || value || command))}`;
+      let res;
+      if (command === "TEXT_INPUT" && value) {
+        for (const char of String(value)) {
+          res = await this.request(device, "POST", `/keypress/Lit_${encodeURIComponent(char)}`);
+          if (!res.ok) break;
+        }
+      } else {
+        res = await this.request(device, "POST", path);
+      }
       const latencyMs = Math.round(performance.now() - startTime);
       return { success: res.ok, latencyMs };
     } catch (err: any) {
@@ -55,6 +64,30 @@ export class RokuEcpTransport implements RemoteTransport {
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string }> {
     // Roku ECP requires no authentication PIN
     return { success: true, token: "roku_no_auth" };
+  }
+
+  private nativeHttp(method: string, url: string, body = ""): any | null {
+    try {
+      const bridge = (globalThis as any).AndroidRemoteBridge;
+      if (typeof bridge?.httpRequest !== "function") return null;
+      const raw = bridge.httpRequest(method, url, body);
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private async request(device: TvDevice, method: string, path: string, body = ""): Promise<{ok: boolean; status: number; body?: string; error?: string}> {
+    const url = `http://${device.ip}:${device.port || 8060}${path}`;
+    const native = this.nativeHttp(method, url, body);
+    if (native) return native;
+    try {
+      const res = await fetch(url, { method, body: body || undefined });
+      const text = await res.text();
+      return { ok: res.ok, status: res.status, body: text };
+    } catch (err: any) {
+      return { ok: false, status: 0, error: err?.message || "Roku network request failed" };
+    }
   }
 
   async sendCommand(device: TvDevice, command: RemoteCommandType, value?: any): Promise<CommandExecutionResult> {
@@ -117,6 +150,15 @@ export class RokuEcpTransport implements RemoteTransport {
   }
 
   async getDeviceInfo(device: TvDevice): Promise<{ model?: string; version?: string; isAlive: boolean }> {
-    return { model: device.model || "Roku Ultra", version: "Roku OS 13.5", isAlive: true };
+    try {
+      const res = await this.request(device, "GET", "/query/device-info");
+      if (!res.ok) return { isAlive: false };
+      const xml = res.body || "";
+      const model = xml.match(/<model-name>([^<]+)<\\/model-name>/)?.[1] || device.model;
+      const version = xml.match(/<software-version>([^<]+)<\\/software-version>/)?.[1];
+      return { model, version, isAlive: true };
+    } catch {
+      return { isAlive: false };
+    }
   }
 }
