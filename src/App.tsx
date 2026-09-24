@@ -111,7 +111,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // First-Launch Onboarding System ("Get Started" option upfront on app launch)
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(true);
+  const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {\n    try { return !Boolean((globalThis as any).AndroidRemoteBridge?.isAndroidTv?.()); } catch { return true; }\n  });
 
   const socketRef = useRef<WebSocket | null>(null);
 
