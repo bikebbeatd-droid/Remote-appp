@@ -483,7 +483,7 @@ export default function App() {
         protocol: "ir_universal",
         requiresPairing: false,
         isPaired: true,
-        isOnline: true,
+        isOnline: false,
         capabilities: profile.defaultCapabilities,
         brand: profile.brand,
         series: profile.series,
