@@ -124,8 +124,8 @@ export class RokuEcpTransport implements RemoteTransport {
       const res = await this.request(device, "GET", "/query/device-info");
       if (!res.ok) return { isAlive: false };
       const xml = res.body || "";
-      const model = xml.match(/<model-name>([^<]+)<\\/model-name>/)?.[1] || device.model;
-      const version = xml.match(/<software-version>([^<]+)<\\/software-version>/)?.[1];
+      const model = xml.match(/<model-name>([^<]+)<\/model-name>/)?.[1] || device.model;
+      const version = xml.match(/<software-version>([^<]+)<\/software-version>/)?.[1];
       return { model, version, isAlive: true };
     } catch {
       return { isAlive: false };
