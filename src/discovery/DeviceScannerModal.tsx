@@ -104,13 +104,15 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       if (res.success && res.device) {
         const enrichedDevice: TvDevice = {
           ...res.device,
+          // A profile may improve naming/model metadata, but never overrides
+          // capabilities or pairing state learned from the real TV protocol.
           brand: initialProfile?.brand || res.device.brand || "Smart TV",
           series: initialProfile?.series || res.device.series,
           model: initialProfile?.model || res.device.model,
-          platform: (initialProfile?.platform || res.device.platform) as any,
-          capabilities: initialProfile?.defaultCapabilities || res.device.capabilities,
-          requiresPairing: initialProfile ? initialProfile.pairingMethod !== "NONE" : res.device.requiresPairing,
-          isPaired: initialProfile ? initialProfile.pairingMethod === "NONE" : res.device.isPaired
+          platform: res.device.platform,
+          capabilities: res.device.capabilities,
+          requiresPairing: res.device.requiresPairing,
+          isPaired: res.device.isPaired
         };
         setProbeResult(`Found device: ${enrichedDevice.name} (${enrichedDevice.protocol})`);
         onSelectDevice?.(enrichedDevice);
