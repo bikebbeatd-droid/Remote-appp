@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AppLogo } from "./AppLogo";
 import { ArrowRight, Sparkles, Wifi, Shield, Cpu } from "lucide-react";
 
@@ -13,7 +13,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 }) => {
   const [progress, setProgress] = useState(12);
   const [phaseText, setPhaseText] = useState("Initializing Universal Remote Core...");
-  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);\n  const completedRef = useRef(false);\n  const onCompleteRef = useRef(onComplete);\n\n  useEffect(() => {\n    onCompleteRef.current = onComplete;\n  }, [onComplete]);
 
   useEffect(() => {
     const startTime = Date.now();
@@ -37,18 +37,18 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         clearInterval(interval);
         setIsFadingOut(true);
         setTimeout(() => {
-          onComplete();
+          if (!completedRef.current) {\n            completedRef.current = true;\n            onCompleteRef.current();\n          }
         }, 300);
       }
     }, 40);
 
     return () => clearInterval(interval);
-  }, [minDurationMs, onComplete]);
+  }, [minDurationMs]);
 
   const handleSkip = () => {
     setIsFadingOut(true);
     setTimeout(() => {
-      onComplete();
+      if (!completedRef.current) {\n        completedRef.current = true;\n        onCompleteRef.current();\n      }
     }, 150);
   };
 
