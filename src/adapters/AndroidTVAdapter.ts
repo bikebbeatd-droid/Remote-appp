@@ -67,7 +67,7 @@ export class AndroidTVAdapter implements TvAdapter {
       navigation: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       volume: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       media: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
-      keyboard: ready && typeof native?.sendText === "function" ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
+      keyboard: "REQUIRES_NATIVE_BRIDGE",
       touchpad: "UNSUPPORTED",
       apps: ready && typeof native?.launchApp === "function" ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
       input: ready ? "SUPPORTED" : "REQUIRES_NATIVE_BRIDGE",
