@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { TvDevice } from "../core/types";
-import { Activity, CheckCircle2, AlertCircle, RefreshCw, X, Wifi, ShieldCheck, Terminal, Clock } from "lucide-react";
+import { Activity, RefreshCw, X, Terminal } from "lucide-react";
+import { AdapterRegistry } from "../adapters/AdapterRegistry";
 
 interface DiagnosticsModalProps {
   device: TvDevice | null;
@@ -33,25 +34,36 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
     const start = performance.now();
 
     try {
-      // Ping API bridge
-      const res = await fetch("/api/health");
-      const data = await res.json();
-      const elapsed = Math.round(performance.now() - start);
+      let backendOk = false;
+      try {
+        const res = await fetch("/api/health", { signal: AbortSignal.timeout(2500) });
+        backendOk = res.ok;
+      } catch {}
+
+      let tvOk = false;
+      let tvLatency = 0;
+      if (device) {
+        try {
+          const result = await AdapterRegistry.getAdapterForDevice(device).ping(device);
+          tvOk = result.online;
+          tvLatency = result.latencyMs ?? 0;
+        } catch {}
+      }
 
       setTestResults({
-        dns: true,
-        pingMs: elapsed,
-        handshake: data.status === "ok",
-        tokenValid: device ? (device.requiresPairing ? !!device.isPaired : true) : false,
-        throughput: "94.2 Mbps (LAN)"
+        dns: backendOk,
+        pingMs: tvLatency || Math.round(performance.now() - start),
+        handshake: tvOk,
+        tokenValid: device ? (!device.requiresPairing || device.isPaired) : false,
+        throughput: "Not measured"
       });
     } catch {
       setTestResults({
         dns: false,
-        pingMs: 999,
+        pingMs: 0,
         handshake: false,
         tokenValid: false,
-        throughput: "0 Mbps"
+        throughput: "Unavailable"
       });
     } finally {
       setIsRunningTest(false);
@@ -95,13 +107,13 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
               <span className="text-[10px] text-zinc-500 uppercase font-semibold">IP Address</span>
               <p className="text-xs font-mono font-medium text-zinc-300 mt-0.5">
-                {device?.ip ? (device.ip === "127.0.0.1" ? "127.0.0.1 (Termux)" : device.ip) : "None (IR Optical)"}
+                {device?.ip ? device.ip : "None (IR Optical)"}
               </p>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
               <span className="text-[10px] text-zinc-500 uppercase font-semibold">Port</span>
               <p className="text-xs font-mono font-medium text-zinc-300 mt-0.5">
-                {device?.port || 3000}
+                {device?.port || "None"}
               </p>
             </div>
             <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
@@ -117,7 +129,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-semibold text-zinc-200">Hardware & Bridge Latency Test</h4>
-                <p className="text-[11px] text-zinc-400">Verifies local network round-trip delay to TV companion</p>
+                <p className="text-[11px] text-zinc-400">Verifies a real protocol round-trip to the selected TV</p>
               </div>
               <button
                 id="run-diagnostics-btn"
@@ -141,8 +153,8 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
                   <span className="font-semibold text-emerald-400">{testResults.handshake ? "Verified ✅" : "Failed ❌"}</span>
                 </div>
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Security Token:</span>
-                  <span className="font-semibold text-emerald-400">{testResults.tokenValid ? "Valid / Stored" : "Not Required"}</span>
+                  <span className="text-zinc-400">Pairing State:</span>
+                  <span className="font-semibold text-emerald-400">{testResults.tokenValid ? "Verified" : "Not verified"}</span>
                 </div>
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
                   <span className="text-zinc-400">LAN Bandwidth:</span>
