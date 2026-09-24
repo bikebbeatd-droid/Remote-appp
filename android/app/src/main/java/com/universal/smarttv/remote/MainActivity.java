@@ -157,7 +157,7 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean requestRequiredPermissions() {
             try {
-                requestRequiredRuntimePermissions();
+                activity.runOnUiThread(() -> ((MainActivity) activity).requestRequiredRuntimePermissions());
                 return true;
             } catch (Exception ignored) {
                 return false;
