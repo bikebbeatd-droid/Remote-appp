@@ -37,33 +37,14 @@ export class RokuEcpTransport implements RemoteTransport {
 
   async connect(device: TvDevice): Promise<{ success: boolean; latencyMs: number; error?: string }> {
     const startTime = performance.now();
-    try {
-      const path = command === "LAUNCH_APP" && value
-        ? `/launch/${encodeURIComponent(String(value))}`
-        : command === "TEXT_INPUT" && value
-          ? ""
-          : `/keypress/${encodeURIComponent(String(rokuKey || value || command))}`;
-      let res;
-      if (command === "TEXT_INPUT" && value) {
-        for (const char of String(value)) {
-          res = await this.request(device, "POST", `/keypress/Lit_${encodeURIComponent(char)}`);
-          if (!res.ok) break;
-        }
-      } else {
-        res = await this.request(device, "POST", path);
-      }
-      const latencyMs = Math.round(performance.now() - startTime);
-      return { success: res.ok, latencyMs };
-    } catch (err: any) {
-      return { success: false, latencyMs: 0, error: err.message };
-    }
+    const res = await this.request(device, "GET", "/query/device-info");
+    return { success: res.ok, latencyMs: Math.round(performance.now() - startTime), error: res.ok ? undefined : (res.error || `Roku verification failed (HTTP ${res.status}).`) };
   }
-
   async disconnect(_device: TvDevice): Promise<void> {}
 
   async authenticate(_device: TvDevice): Promise<{ success: boolean; token?: string }> {
     // Roku ECP requires no authentication PIN
-    return { success: true, token: "roku_no_auth" };
+    return { success: true };
   }
 
   private nativeHttp(method: string, url: string, body = ""): any | null {
@@ -95,45 +76,34 @@ export class RokuEcpTransport implements RemoteTransport {
     const rokuKey = ROKU_KEY_MAP[command];
 
     if (!rokuKey && command !== "LAUNCH_APP" && command !== "TEXT_INPUT") {
-      return {
-        success: false,
-        command,
-        timestamp: Date.now(),
-        latencyMs: 0,
-        error: `Roku ECP does not expose a native key for ${command}`,
-        protocol: this.name
-      };
+      return { success: false, command, timestamp: Date.now(), latencyMs: 0, error: `Roku ECP does not expose a native key for ${command}`, protocol: this.name };
     }
 
     try {
-      const res = await fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId: device.id,
-          command,
-          value: value || rokuKey,
-          protocol: "roku_ecp"
-        })
-      });
+      let res: any = null;
+      if (command === "TEXT_INPUT" && value) {
+        for (const char of String(value)) {
+          res = await this.request(device, "POST", `/keypress/Lit_${encodeURIComponent(char)}`);
+          if (!res.ok) break;
+        }
+      } else {
+        const path = command === "LAUNCH_APP" && value
+          ? `/launch/${encodeURIComponent(String(value))}`
+          : `/keypress/${encodeURIComponent(String(rokuKey || value || command))}`;
+        res = await this.request(device, "POST", path);
+      }
       const latencyMs = Math.round(performance.now() - startTime);
       return {
-        success: res.ok,
+        success: Boolean(res?.ok),
         command,
         value: rokuKey || value,
         timestamp: Date.now(),
         latencyMs,
-        protocol: this.name
+        protocol: this.name,
+        error: res?.ok ? undefined : (res?.error || `Roku rejected command (HTTP ${res?.status || 0}).`)
       };
     } catch (err: any) {
-      return {
-        success: false,
-        command,
-        timestamp: Date.now(),
-        latencyMs: Math.round(performance.now() - startTime),
-        error: err.message,
-        protocol: this.name
-      };
+      return { success: false, command, timestamp: Date.now(), latencyMs: Math.round(performance.now() - startTime), error: err?.message || "Roku command failed", protocol: this.name };
     }
   }
 
