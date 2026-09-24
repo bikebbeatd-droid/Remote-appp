@@ -138,7 +138,7 @@ export const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       port: 0,
       requiresPairing: false,
       isPaired: true,
-      isOnline: true,
+      isOnline: false,
       capabilities: initialProfile.defaultCapabilities,
       lastSeen: Date.now()
     };
