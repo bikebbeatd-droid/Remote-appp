@@ -13,7 +13,13 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 }) => {
   const [progress, setProgress] = useState(12);
   const [phaseText, setPhaseText] = useState("Initializing Universal Remote Core...");
-  const [isFadingOut, setIsFadingOut] = useState(false);\n  const completedRef = useRef(false);\n  const onCompleteRef = useRef(onComplete);\n\n  useEffect(() => {\n    onCompleteRef.current = onComplete;\n  }, [onComplete]);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     const startTime = Date.now();
@@ -37,7 +43,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         clearInterval(interval);
         setIsFadingOut(true);
         setTimeout(() => {
-          if (!completedRef.current) {\n            completedRef.current = true;\n            onCompleteRef.current();\n          }
+          if (!completedRef.current) {
+            completedRef.current = true;
+            onCompleteRef.current();
+          }
         }, 300);
       }
     }, 40);
@@ -48,7 +57,10 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   const handleSkip = () => {
     setIsFadingOut(true);
     setTimeout(() => {
-      if (!completedRef.current) {\n        completedRef.current = true;\n        onCompleteRef.current();\n      }
+      if (!completedRef.current) {
+        completedRef.current = true;
+        onCompleteRef.current();
+      }
     }, 150);
   };
 
