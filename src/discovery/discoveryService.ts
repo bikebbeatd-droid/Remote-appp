@@ -2,6 +2,7 @@ import { TvDevice } from "../core/types";
 import { DEFAULT_DEVICES } from "../core/constants";
 import { TokenVault } from "../pairing/tokenVault";
 import { AdapterRegistry } from "../adapters/AdapterRegistry";
+import { validateTvTarget } from "../core/networkValidation";
 
 interface NativeAndroidTvBridge {
   isAvailable?: () => boolean;
@@ -110,53 +111,77 @@ export class DiscoveryService {
   }
 
   static async probeIp(ip: string, port?: number, protocol?: string): Promise<{ success: boolean; device?: TvDevice; error?: string }> {
+    const target = validateTvTarget(ip, port);
+    if (!target.valid) return { success: false, error: target.error || "Invalid TV target." };
+
+    const normalizedProtocol = String(protocol || "").toLowerCase();
+    const platform: TvDevice["platform"] =
+      normalizedProtocol.includes("roku") ? "roku" :
+      normalizedProtocol.includes("tizen") || normalizedProtocol.includes("samsung") ? "tizen" :
+      normalizedProtocol.includes("webos") || normalizedProtocol.includes("lg") ? "webos" :
+      normalizedProtocol.includes("sony") ? "sony_bravia" :
+      normalizedProtocol.includes("android") || normalizedProtocol.includes("google") ? "android_tv" :
+      "generic";
+
+    if (platform === "generic" || !AdapterRegistry.hasAdapter(platform)) {
+      return {
+        success: false,
+        error: "No verified direct adapter is available for this protocol. Select Roku, Samsung Tizen, LG webOS, Sony BRAVIA, or Android TV."
+      };
+    }
+
+    const defaults: Record<string, { port: number; protocol: string; name: string; brand: string; requiresPairing: boolean }> = {
+      roku: { port: 8060, protocol: "roku_ecp", name: "Roku", brand: "Roku", requiresPairing: false },
+      tizen: { port: 8001, protocol: "samsung_tizen_ws", name: "Samsung Smart TV", brand: "Samsung", requiresPairing: false },
+      webos: { port: 3000, protocol: "lg_webos_ssap", name: "LG Smart TV", brand: "LG", requiresPairing: true },
+      sony_bravia: { port: 80, protocol: "sony_ircc_rest", name: "Sony BRAVIA", brand: "Sony", requiresPairing: true },
+      android_tv: { port: 6467, protocol: "android_tv_receiver", name: "Android TV / Google TV", brand: "Android TV", requiresPairing: true }
+    };
+    const d = defaults[platform];
+    const actualPort = port || d.port;
+    const actualProtocol = protocol || d.protocol;
+    const id = platform + "-" + ip.replace(/\./g, "-") + "-" + actualPort;
+    const storedToken = TokenVault.getToken(id);
+
+    const candidate: TvDevice = {
+      id,
+      name: d.name,
+      brand: d.brand,
+      manufacturer: d.brand,
+      model: "Pending verification",
+      platform,
+      ip,
+      port: actualPort,
+      protocol: actualProtocol,
+      requiresPairing: platform === "roku" ? false : d.requiresPairing,
+      isPaired: platform === "roku" ? true : Boolean(storedToken),
+      isOnline: false,
+      token: storedToken || undefined,
+      capabilities: AdapterRegistry.getAdapter(platform).getCapabilities()
+    };
+
     try {
-      const res = await fetch("/api/devices/probe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ip, port, protocol })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return { success: false, error: data.error || "Device not found at specified IP." };
+      const adapter = AdapterRegistry.getAdapter(platform);
+      const ping = await adapter.ping(candidate);
+      if (!ping.online) {
+        return {
+          success: false,
+          error: ping.error || "No verified response from " + d.name + " at " + ip + ":" + actualPort + "."
+        };
       }
 
-      const dev = data.device;
-      const storedToken = TokenVault.getToken(dev.id);
-      const isPaired = !dev.requiresPairing || !!storedToken;
-      const device: TvDevice = {
-        id: dev.id,
-        name: dev.name,
-        model: dev.model || "Network Smart TV",
-        platform: typeof dev.platform === "string" ? dev.platform : "generic",
-        ip: dev.ip,
-        port: dev.port,
-        protocol: dev.protocol,
-        requiresPairing: dev.requiresPairing ?? true,
-        isPaired,
-        isOnline: true,
-        token: storedToken || dev.token,
-        // Never invent capabilities when a probe did not verify them.
-        capabilities: dev.capabilities || {
-          power: "UNKNOWN",
-          navigation: "UNKNOWN",
-          volume: "UNKNOWN",
-          media: "UNKNOWN",
-          keyboard: "UNKNOWN",
-          touchpad: "UNKNOWN",
-          apps: "UNKNOWN",
-          input: "UNKNOWN",
-          voice: "UNKNOWN",
-          channels: "UNKNOWN",
-          ir: "UNKNOWN",
-          bluetooth: "UNKNOWN",
-          wifi: "UNKNOWN"
+      return {
+        success: true,
+        device: {
+          ...candidate,
+          isOnline: true,
+          lastSeen: Date.now()
         }
       };
-
-      return { success: true, device };
     } catch (err: any) {
-      return { success: false, error: err.message || "Network probe failed" };
+      return {
+        success: false,
+        error: err?.message || "Failed to verify " + d.name + " at " + ip + ":" + actualPort + "."
+      };
     }
-  }
-}
+  }}
