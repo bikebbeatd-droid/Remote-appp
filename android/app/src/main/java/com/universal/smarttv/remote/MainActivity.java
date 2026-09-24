@@ -150,6 +150,16 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public boolean requestRequiredPermissions() {
+            try {
+                requestRequiredRuntimePermissions();
+                return true;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
         public boolean startLocalReceiver() {
             return localReceiver != null && localReceiver.start();
         }
