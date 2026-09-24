@@ -69,6 +69,7 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [viewMode, setViewMode] = useState<InterfaceViewMode>("mobile");
   const [connectionState, setConnectionState] = useState<ConnectionState>("DISCONNECTED");
+  const [lanIp, setLanIp] = useState<string>("");
   const [amoledMode, setAmoledMode] = useState<boolean>(() => {
     try { return localStorage.getItem("ustv_amoled_mode") === "1"; } catch { return false; }
   });
@@ -113,6 +114,26 @@ export default function App() {
   const [isOnboarding, setIsOnboarding] = useState<boolean>(true);
 
   const socketRef = useRef<WebSocket | null>(null);
+
+  // Show the phone/TV's real Wi-Fi LAN address. Never use 127.0.0.1 as a TV address.
+  useEffect(() => {
+    let cancelled = false;
+    const readLanIp = () => {
+      try {
+        const bridge = (globalThis as any).AndroidRemoteBridge;
+        const ip = String(bridge?.getLanIp?.() || "").trim();
+        if (!cancelled) setLanIp(ip);
+      } catch {
+        if (!cancelled) setLanIp("");
+      }
+    };
+    readLanIp();
+    const timer = window.setInterval(readLanIp, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // Auth & Cloud Sync Listener
   useEffect(() => {
@@ -602,6 +623,13 @@ export default function App() {
       <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-7">
           <div className="flex min-h-16 items-center gap-3 py-2">
+            <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-2.5 py-1.5 text-[10px]">
+              <Wifi className="h-3.5 w-3.5 text-cyan-400" />
+              <div className="leading-tight">
+                <div className="font-semibold text-cyan-200">Wi-Fi IP</div>
+                <div className="font-mono text-zinc-300">{lanIp || "Unavailable"}</div>
+              </div>
+            </div>
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <AppLogo size="sm" showText={false} animated={true} />
               <div className="min-w-0">
