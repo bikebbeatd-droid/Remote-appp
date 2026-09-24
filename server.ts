@@ -1080,67 +1080,44 @@ app.post("/api/devices/pair", async (req, res) => {
 
   // Platform-specific pairing workflows
   if (verifiedDev.platform === "roku") {
-    // Roku does not require PIN pairing
-    const token = "roku_open_auth";
-    activeTokensMap.set(deviceId, token);
     return res.json({
       success: true,
-      token,
       deviceId,
-      message: "Roku ECP does not require PIN authentication."
+      message: "Roku ECP does not require a pairing token."
     });
   }
 
   if (verifiedDev.platform === "sony_bravia") {
-    // Sony BRAVIA Pre-Shared Key (PSK) / Access Control
-    if (!pin) {
-      return res.status(400).json({
-        success: false,
-        error: "Sony BRAVIA requires a Pre-Shared Key (PSK) configured in TV Settings > Network > Home Network > IP Control."
-      });
-    }
-    const token = pin;
-    activeTokensMap.set(deviceId, token);
-    return res.json({
-      success: true,
-      token,
-      deviceId,
-      message: "Sony BRAVIA PSK saved and verified."
+    return res.status(501).json({
+      success: false,
+      error: "Sony BRAVIA pairing is performed by the verified platform adapter, which must confirm the TV with the supplied PSK. The generic backend pairing route does not mint or store PSKs."
     });
   }
 
   if (verifiedDev.platform === "tizen") {
-    // Samsung Tizen token generation on authorization
-    const token = "samsung_tizen_" + crypto.randomBytes(12).toString("hex");
-    activeTokensMap.set(deviceId, token);
-    return res.json({
-      success: true,
-      token,
-      deviceId,
-      message: "Samsung SmartView connection authorized."
+    return res.status(501).json({
+      success: false,
+      error: "Samsung Tizen pairing is performed by the direct WebSocket adapter. This backend route does not mint a fake token."
     });
   }
 
   if (verifiedDev.platform === "webos") {
-    // LG webOS client key
-    const token = "lg_client_key_" + crypto.randomBytes(16).toString("hex");
-    activeTokensMap.set(deviceId, token);
-    return res.json({
-      success: true,
-      token,
-      deviceId,
-      message: "LG webOS SSAP paired."
+    return res.status(501).json({
+      success: false,
+      error: "LG webOS pairing is performed by the SSAP adapter, which receives a real client-key from the TV. This backend route does not mint one."
     });
   }
 
-  // Default Android TV v2 token
-  const token = "atv_tok_" + crypto.randomBytes(16).toString("hex");
-  activeTokensMap.set(deviceId, token);
-  return res.json({
-    success: true,
-    token,
-    deviceId,
-    message: "Pairing confirmed with TV."
+  if (verifiedDev.platform === "android_tv" || verifiedDev.platform === "google_tv") {
+    return res.status(501).json({
+      success: false,
+      error: "Android TV pairing is performed by the native Remote Service v2 mutual-TLS bridge. This backend route does not mint a fake token."
+    });
+  }
+
+  return res.status(501).json({
+    success: false,
+    error: "No verified pairing flow exists for this platform in the backend."
   });
 });
 
@@ -1793,7 +1770,15 @@ app.post("/api/command", async (req, res) => {
         INFO: "KEY_INFO"
       };
 
-      const keyToSend = mappedKey || samsungKeyMap[command] || "KEY_HOME";
+      const keyToSend = mappedKey || samsungKeyMap[command];
+      if (!keyToSend) {
+        return res.status(400).json({
+          requestId, deviceId, command, success: false,
+          errorCode: "UNSUPPORTED_COMMAND",
+          error: "Samsung Tizen command " + command + " is not mapped.",
+          latencyMs: Date.now() - startTime
+        });
+      }
 
       const result = await sendSamsungTizenWsCommand(
         device.ip,
@@ -1886,9 +1871,16 @@ app.post("/api/command", async (req, res) => {
           ssapPayload = { id: value || "netflix" };
           break;
         default:
-          ssapUri = "ssap://system/showFloat";
-          ssapPayload = { message: `Remote command: ${command}` };
-          break;
+          return res.status(400).json({
+            requestId,
+            deviceId,
+            command,
+            value,
+            success: false,
+            errorCode: "UNSUPPORTED_COMMAND",
+            error: "LG webOS command " + command + " is not mapped to a verified SSAP endpoint.",
+            latencyMs: Date.now() - startTime
+          });
       }
 
       const result = await sendLgWebOsWsCommand(
