@@ -111,7 +111,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // First-Launch Onboarding System ("Get Started" option upfront on app launch)
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {\n    try { return !Boolean((globalThis as any).AndroidRemoteBridge?.isAndroidTv?.()); } catch { return true; }\n  });
+  const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {
+    try { return !Boolean((globalThis as any).AndroidRemoteBridge?.isAndroidTv?.()); } catch { return true; }
+  });
 
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -291,7 +293,30 @@ export default function App() {
     }
   }, []);
 
-  // Direct phone -> TV receiver command bridge. This is separate from the optional Termux/backend WebSocket.\n  useEffect(() => {\n    const bridge = (globalThis as any).AndroidRemoteBridge;\n    if (!bridge?.isAndroidTv?.()) return;\n    let timer: number | null = null;\n    const poll = () => {\n      try {\n        const raw = bridge.getPendingLocalCommand?.();\n        if (raw) {\n          const data = JSON.parse(raw);\n          if (data?.command) {\n            setLastCommand({ command: data.command, value: data.value, timestamp: new Date(data.timestamp || Date.now()).toLocaleTimeString() });\n          }\n        }\n      } catch (error) {\n        console.warn("Ignoring malformed local TV command:", error);\n      }\n      timer = window.setTimeout(poll, 200);\n    };\n    poll();\n    return () => { if (timer !== null) window.clearTimeout(timer); };\n  }, []);\n\n  // 2. Optional companion WebSocket.
+  // Direct phone -> TV receiver command bridge. This is separate from the optional Termux/backend WebSocket.
+  useEffect(() => {
+    const bridge = (globalThis as any).AndroidRemoteBridge;
+    if (!bridge?.isAndroidTv?.()) return;
+    let timer: number | null = null;
+    const poll = () => {
+      try {
+        const raw = bridge.getPendingLocalCommand?.();
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data?.command) {
+            setLastCommand({ command: data.command, value: data.value, timestamp: new Date(data.timestamp || Date.now()).toLocaleTimeString() });
+          }
+        }
+      } catch (error) {
+        console.warn("Ignoring malformed local TV command:", error);
+      }
+      timer = window.setTimeout(poll, 200);
+    };
+    poll();
+    return () => { if (timer !== null) window.clearTimeout(timer); };
+  }, []);
+
+  // 2. Optional companion WebSocket.
   // Do not let a missing/failed companion server prevent the remote UI from rendering.
   useEffect(() => {
     if (typeof window === "undefined") return;
