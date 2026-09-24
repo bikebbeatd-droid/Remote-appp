@@ -20,6 +20,11 @@ import com.getcapacitor.BridgeActivity;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -220,6 +225,55 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception e) {
                 return false;
             }
+        }
+
+
+        @JavascriptInterface
+        public String httpRequest(String method, String urlString, String body) {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL(urlString);
+                if (!isAllowedLanHost(url.getHost())) {
+                    return "{\"ok\":false,\"status\":0,\"error\":\"Only private LAN TV addresses are allowed.\"}";
+                }
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod(method == null ? "GET" : method.toUpperCase(java.util.Locale.ROOT));
+                connection.setConnectTimeout(2500);
+                connection.setReadTimeout(3500);
+                connection.setUseCaches(false);
+                if (body != null && !body.isEmpty()) {
+                    connection.setDoOutput(true);
+                    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+                    try (OutputStream out = connection.getOutputStream()) {
+                        out.write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                }
+                int status = connection.getResponseCode();
+                java.io.InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+                StringBuilder response = new StringBuilder();
+                if (stream != null) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) response.append(line);
+                    }
+                }
+                return "{\"ok\":" + (status >= 200 && status < 300) + ",\"status\":" + status + ",\"body\":" + jsonEscape(response.toString()) + "}";
+            } catch (Exception e) {
+                return "{\"ok\":false,\"status\":0,\"error\":" + jsonEscape(e.getMessage() == null ? "Network request failed" : e.getMessage()) + "}";
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }
+
+        private static boolean isAllowedLanHost(String host) {
+            if (host == null || host.isEmpty() || "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host)) return false;
+            try {
+                String[] p = host.split("\\.");
+                if (p.length != 4) return false;
+                int a = Integer.parseInt(p[0]), b = Integer.parseInt(p[1]), cc = Integer.parseInt(p[2]), d = Integer.parseInt(p[3]);
+                if (a < 0 || a > 255 || b < 0 || b > 255 || cc < 0 || cc > 255 || d < 0 || d > 255) return false;
+                return a == 10 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168) || (a == 169 && b == 254);
+            } catch (Exception e) { return false; }
         }
 
         @JavascriptInterface
