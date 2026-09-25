@@ -47,7 +47,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -57,7 +57,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Normal permission required for real Android IR transmission when the phone has an IR emitter. -->
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
-    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- ACCESS_LOCAL_NETWORK is only needed when targeting Android 17 / SDK 37+. Current target SDK is 36. -->
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
