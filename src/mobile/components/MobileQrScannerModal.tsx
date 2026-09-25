@@ -201,6 +201,24 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
     }
 
     try {
+      // Native Android builds must obtain the OS camera permission before getUserMedia().
+      // This keeps QR onboarding reliable in Capacitor/WebView builds.
+      const native = (globalThis as any).AndroidRemoteBridge;
+      if (typeof native?.hasCameraPermission === "function" && typeof native?.requestCameraPermission === "function") {
+        if (!native.hasCameraPermission()) {
+          native.requestCameraPermission();
+          const deadline = Date.now() + 5000;
+          while (!native.hasCameraPermission() && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+          if (!native.hasCameraPermission()) {
+            const err: any = new Error("Camera permission is required to scan the TV QR code.");
+            err.name = "NotAllowedError";
+            throw err;
+          }
+        }
+      }
+
       const constraints: MediaStreamConstraints = {
         video: {
           facingMode,
