@@ -110,7 +110,15 @@ export default function App() {
 
   // First-Launch Onboarding System ("Get Started" option upfront on app launch)
   const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {
-    try { return !Boolean((globalThis as any).AndroidRemoteBridge?.isAndroidTv?.()); } catch { return true; }
+    try {
+      const isAndroidTv = Boolean((globalThis as any).AndroidRemoteBridge?.isAndroidTv?.());
+      if (isAndroidTv) return false;
+      // Only show onboarding on the first launch. A normal app reload/restart
+      // must return directly to the Remote screen once onboarding was completed.
+      return localStorage.getItem("ustv_onboarding_completed") !== "1";
+    } catch {
+      return false;
+    }
   });
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -587,6 +595,7 @@ export default function App() {
     handleAddDevice(selectedDev);
     setCurrentMode(initialMode);
     setIsOnboarding(false);
+    try { localStorage.setItem("ustv_onboarding_completed", "1"); } catch {}
     showToast(`Connected to ${selectedDev.name}! Remote ready.`, "success");
   };
 
