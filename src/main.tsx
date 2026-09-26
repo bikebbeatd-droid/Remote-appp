@@ -54,7 +54,22 @@ try {
       <App />
     </ErrorBoundary>,
   );
-  window.dispatchEvent(new Event("ustv:app-mounted"));
+
+  // React 19 may commit asynchronously. The previous implementation fired the
+  // boot-complete event immediately after root.render(), before React replaced
+  // the static boot screen. That left the Android APK permanently showing
+  // "Loading…" with a Reload button. Wait until the DOM commit is observable.
+  const notifyAppMounted = () => {
+    const mounted = rootElement.querySelector("#app-error-boundary-screen") ||
+      rootElement.querySelector("main") ||
+      rootElement.querySelector("[data-ustv-app]");
+    if (mounted) {
+      window.dispatchEvent(new Event("ustv:app-mounted"));
+      return;
+    }
+    window.requestAnimationFrame(notifyAppMounted);
+  };
+  window.requestAnimationFrame(notifyAppMounted);
 } catch (error) {
   showBootError(error);
 }
