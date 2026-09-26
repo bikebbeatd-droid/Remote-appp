@@ -165,6 +165,36 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public String getPermissionStatus() {
+            try {
+                boolean nearbyWifi = Build.VERSION.SDK_INT < 33 ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED;
+                boolean location = Build.VERSION.SDK_INT > 32 ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                boolean camera = Build.VERSION.SDK_INT < 23 ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+                boolean microphone = Build.VERSION.SDK_INT < 23 ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+                boolean bluetooth = Build.VERSION.SDK_INT < 31 ||
+                    (ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+                     ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED);
+                boolean notifications = Build.VERSION.SDK_INT < 33 ||
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+                boolean localNetwork = Build.VERSION.SDK_INT < 37 ||
+                    ContextCompat.checkSelfPermission(activity, "android.permission.ACCESS_LOCAL_NETWORK") == PackageManager.PERMISSION_GRANTED;
+                return "{\"nearbyWifi\":" + nearbyWifi +
+                    ",\"location\":" + location +
+                    ",\"camera\":" + camera +
+                    ",\"microphone\":" + microphone +
+                    ",\"bluetooth\":" + bluetooth +
+                    ",\"notifications\":" + notifications +
+                    ",\"localNetwork\":" + localNetwork + "}";
+            } catch (Exception e) {
+                return "{\"error\":\"permission_status_unavailable\"}";
+            }
+        }
+
+        @JavascriptInterface
         public boolean startLocalReceiver() {
             return localReceiver != null && localReceiver.start();
         }
