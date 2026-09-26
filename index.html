@@ -29,7 +29,7 @@
         var status = document.getElementById('boot-status');
         var progress = document.getElementById('boot-progress');
         var timer = setTimeout(function () {
-          if (status && document.getElementById('root') && document.getElementById('root').children.length === 1) {
+          if (status && document.getElementById('native-boot-screen')) {
             status.textContent = 'The app is taking longer than expected. Tap Reload if it stays here.';
             progress.style.width = '100%';
             var b = document.createElement('button');
@@ -47,10 +47,14 @@
           if (status) status.textContent = 'Startup error: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason || 'Unknown error'));
           if (progress) progress.style.width = '100%';
         });
+        window.addEventListener('ustv:app-mounted', function () {
+          clearTimeout(timer);
+          var boot = document.getElementById('native-boot-screen');
+          if (boot) boot.remove();
+        });
         window.addEventListener('load', function () {
           if (progress) progress.style.width = '55%';
           if (status) status.textContent = 'Loading remote interface…';
-          setTimeout(function () { clearTimeout(timer); }, 1000);
         });
       })();
     </script>
