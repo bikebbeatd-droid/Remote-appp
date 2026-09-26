@@ -54,6 +54,7 @@ try {
       <App />
     </ErrorBoundary>,
   );
+  window.dispatchEvent(new Event("ustv:app-mounted"));
 } catch (error) {
   showBootError(error);
 }
