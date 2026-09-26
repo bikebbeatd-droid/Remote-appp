@@ -30,7 +30,6 @@ import { User } from "firebase/auth";
 import { DeviceProfile } from "./database/types";
 import { validateTvTarget } from "./core/networkValidation";
 import { AppLogo } from "./components/common/AppLogo";
-import { LoadingScreen } from "./components/common/LoadingScreen";
 import { App as CapApp } from "@capacitor/app";
 import { HapticsService } from "./utils/haptics";
 import {
@@ -108,7 +107,6 @@ export default function App() {
   const [toast, setToast] = useState<{ type: "success" | "error" | "warning"; message: string } | null>(null);
 
   // Startup Loading Screen
-  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // First-Launch Onboarding System ("Get Started" option upfront on app launch)
   const [isOnboarding, setIsOnboarding] = useState<boolean>(() => {
@@ -636,10 +634,6 @@ export default function App() {
       setIsSending(false);
     }
   };
-
-  if (isLoading) {
-    return <LoadingScreen onComplete={() => setIsLoading(false)} />;
-  }
 
   return (
     <div className={`min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white ${amoledMode ? "amoled-mode" : ""}`}>
