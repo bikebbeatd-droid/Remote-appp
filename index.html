@@ -30,13 +30,8 @@
         var progress = document.getElementById('boot-progress');
         var timer = setTimeout(function () {
           if (status && document.getElementById('native-boot-screen')) {
-            status.textContent = 'The app is taking longer than expected. Tap Reload if it stays here.';
+            status.textContent = 'App startup is taking longer than expected. Please wait…';
             progress.style.width = '100%';
-            var b = document.createElement('button');
-            b.textContent = 'Reload app';
-            b.style.cssText = 'margin-top:18px;padding:11px 18px;border:0;border-radius:12px;background:#4f46e5;color:#fff;font-weight:700;';
-            b.onclick = function () { location.reload(); };
-            status.parentNode.appendChild(b);
           }
         }, 9000);
         window.addEventListener('error', function (e) {
