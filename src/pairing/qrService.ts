@@ -35,9 +35,11 @@ function validatePayload(raw: any): { success: boolean; error?: string; data?: T
   const protocol = typeof raw.protocol === "string" ? raw.protocol.trim() : "";
   const deviceId = typeof raw.deviceId === "string" ? raw.deviceId.trim() : "";
   const name = typeof raw.name === "string" ? raw.name.trim().slice(0, 100) : "Smart TV";
+  const allowedProtocols = new Set(["roku_ecp","samsung_tizen_ws","lg_webos_ssap","sony_ircc_rest","android_tv_receiver","companion_local_http","ir_universal"]);
   const timestamp = Number(raw.timestamp);
 
   if (!deviceId || deviceId.length > 128 || !protocol || protocol.length > 100 || !ip) return { success: false, error: "TV QR is missing verified device connection information." };
+  if (!allowedProtocols.has(protocol.toLowerCase())) return { success: false, error: "TV QR contains an unknown or unsupported protocol." };
   if (ip === "127.0.0.1" || ip === "localhost") return { success: false, error: "127.0.0.1/localhost is the phone backend, not the TV." };
   if (!isPrivateLanIpv4(ip)) return { success: false, error: "TV QR must contain a private LAN IPv4 address." };
   if (!Number.isInteger(port) || port < 1 || port > 65535) return { success: false, error: "TV QR contains an invalid port." };

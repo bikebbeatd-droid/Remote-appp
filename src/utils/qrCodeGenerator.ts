@@ -39,8 +39,8 @@ export function buildTvPairingPayload(device: TvDevice | null): {
   params.set("name", device.name);
   params.set("proto", device.protocol);
   params.set("pairing", device.requiresPairing ? "1" : "0");
-  params.set("ts", String(Date.now()));
-  params.set("ts", String(Date.now()));
+  const timestamp = Date.now();
+  params.set("ts", String(timestamp));
 
   if (!isUsableTvIp(device.ip)) throw new Error("A real TV LAN IP is required.");
   params.set("ip", device.ip);
@@ -58,7 +58,7 @@ export function buildTvPairingPayload(device: TvDevice | null): {
     ...(Number.isInteger(device.port) && device.port > 0 && device.port <= 65535 ? { port: device.port } : {}),
     protocol: device.protocol,
     pairingRequired: Boolean(device.requiresPairing && !device.isPaired),
-    timestamp: Date.now(),
+    timestamp,
     connectUrl: pairingUrl
   };
 

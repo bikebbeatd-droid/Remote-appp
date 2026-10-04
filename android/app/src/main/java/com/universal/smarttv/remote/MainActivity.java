@@ -76,28 +76,7 @@ public class MainActivity extends BridgeActivity {
                 UiModeManager uiModeManager = (UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
                 isTv = uiModeManager != null && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
             } catch (Exception ignored) {}
-            if (!isTv && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.CAMERA);
-            }
-            // Android 17+ protects LAN discovery/control with a dedicated runtime permission.
-            // Use the literal name so older Android SDKs can still build the app.
-            if (Build.VERSION.SDK_INT >= 37) {
-                final String localNetworkPermission = "android.permission.ACCESS_LOCAL_NETWORK";
-                if (ContextCompat.checkSelfPermission(this, localNetworkPermission) != PackageManager.PERMISSION_GRANTED) {
-                    permissions.add(localNetworkPermission);
-                }
-            }
-            if (Build.VERSION.SDK_INT >= 31) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_SCAN);
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE);
-            }
-            if (Build.VERSION.SDK_INT >= 33) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.POST_NOTIFICATIONS);
-            }
-            if (!isTv && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.RECORD_AUDIO);
-            }
+            // Optional permissions are requested only when their feature is opened.
             if (!permissions.isEmpty()) {
                 ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), 4108);
             }
@@ -175,11 +154,8 @@ public class MainActivity extends BridgeActivity {
                     ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
                 boolean microphone = Build.VERSION.SDK_INT < 23 ||
                     ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
-                boolean bluetooth = Build.VERSION.SDK_INT < 31 ||
-                    (ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
-                     ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED);
-                boolean notifications = Build.VERSION.SDK_INT < 33 ||
-                    ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+                boolean bluetooth = false;
+                boolean notifications = false;
                 boolean localNetwork = Build.VERSION.SDK_INT < 37 ||
                     ContextCompat.checkSelfPermission(activity, "android.permission.ACCESS_LOCAL_NETWORK") == PackageManager.PERMISSION_GRANTED;
                 return "{\"nearbyWifi\":" + nearbyWifi +
@@ -244,6 +220,27 @@ public class MainActivity extends BridgeActivity {
         public boolean hasCameraPermission() {
             return Build.VERSION.SDK_INT < 23 ||
                 ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public boolean requestNetworkDiscoveryPermissions() {
+            try {
+                java.util.ArrayList<String> permissions = new java.util.ArrayList<>();
+                if (Build.VERSION.SDK_INT >= 33) {
+                    if (ContextCompat.checkSelfPermission(activity, Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES);
+                } else if (Build.VERSION.SDK_INT >= 23) {
+                    if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+                }
+                if (Build.VERSION.SDK_INT >= 37) {
+                    final String localNetworkPermission = "android.permission.ACCESS_LOCAL_NETWORK";
+                    if (ContextCompat.checkSelfPermission(activity, localNetworkPermission) != PackageManager.PERMISSION_GRANTED) permissions.add(localNetworkPermission);
+                }
+                if (!permissions.isEmpty()) {
+                    ActivityCompat.requestPermissions(activity, permissions.toArray(new String[0]), 4110);
+                    return false;
+                }
+                return true;
+            } catch (Exception e) { return false; }
         }
 
         @JavascriptInterface

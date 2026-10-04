@@ -234,64 +234,38 @@ export default function App() {
       }
     }
 
-    // Handle incoming QR Code deep link scan (e.g. ?pair=true&dev=...&ip=...)
+    // Handle incoming QR Code deep link scan. Never accept a PIN/secret from QR.
     try {
       if (typeof window !== "undefined" && window.location.search) {
         const params = new URLSearchParams(window.location.search);
-        const isPair = params.get("pair");
-        const devId = params.get("dev");
-        const ip = params.get("ip");
-        const name = params.get("name") || "Smart TV Receiver";
-        const port = Number(params.get("port")) || 6467;
-        const proto = params.get("proto") || "android_tv_receiver";
-        const pin = params.get("pin");
-
-        if (isPair) {
-          if (!ip) {
-            showToast("QR pairing link missing TV IP address. Please scan TV directly.", "warning");
+        if (params.get("pair")) {
+          const ip = (params.get("ip") || "").trim();
+          const devId = params.get("dev");
+          const name = params.get("name") || "Smart TV";
+          const port = Number(params.get("port"));
+          const proto = params.get("proto") || "";
+          const pairing = params.get("pairing") === "1";
+          const ts = Number(params.get("ts"));
+          if (!ip || !devId || !proto || !Number.isInteger(port) || !Number.isFinite(ts) || Math.abs(Date.now() - ts) > 10 * 60 * 1000) {
+            showToast("QR setup data is missing, malformed, or expired.", "error");
             return;
           }
-          const cleanIp = ip.trim();
-          const targetValidation = validateTvTarget(cleanIp, port);
-          if (!targetValidation.valid) {
-            showToast(targetValidation.error || "Invalid TV target in QR code.", "error");
-            return;
-          }
-
-          const targetIp = cleanIp;
-          const newDev: TvDevice = {
-            id: devId || `tv_${targetIp.replace(/\./g, "_")}`,
-            name: decodeURIComponent(name),
-            brand: "Smart TV",
-            model: "Smart TV Display",
-            platform: (proto.includes("android") ? "android_tv" : proto.includes("roku") ? "roku" : "generic") as any,
-            ip: targetIp,
-            port,
-            protocol: decodeURIComponent(proto),
-            requiresPairing: true,
-            isPaired: false,
-            isOnline: false,
-            capabilities: {
-              power: "UNKNOWN",
-              navigation: "UNKNOWN",
-              volume: "UNKNOWN",
-              media: "UNKNOWN",
-              keyboard: "UNKNOWN",
-              touchpad: "UNKNOWN",
-              apps: "UNKNOWN",
-              input: "UNKNOWN",
-              voice: "UNKNOWN",
-              channels: "UNKNOWN",
-              ir: "UNSUPPORTED",
-              bluetooth: "UNKNOWN",
-              wifi: "UNKNOWN"
-            },
-            lastSeen: Date.now()
+          const validation = validateTvTarget(ip, port);
+          if (!validation.valid) { showToast(validation.error || "Invalid TV target in QR code.", "error"); return; }
+          const lower = proto.toLowerCase();
+          const platform = lower.includes("roku") ? "roku" : lower.includes("tizen") || lower.includes("samsung") ? "tizen" : lower.includes("webos") || lower.includes("lg") ? "webos" : lower.includes("sony") ? "sony_bravia" : lower.includes("android") || lower.includes("google") ? "android_tv" : "generic";
+          if (platform === "generic") { showToast("QR contains an unsupported TV protocol.", "error"); return; }
+          const candidate: TvDevice = {
+            id: devId, name: decodeURIComponent(name), brand: platform === "roku" ? "Roku" : platform === "tizen" ? "Samsung" : platform === "webos" ? "LG" : platform === "sony_bravia" ? "Sony" : "Android TV",
+            model: "Pending verification", platform: platform as TvDevice["platform"], ip, port, protocol: decodeURIComponent(proto),
+            requiresPairing: pairing, isPaired: false, isOnline: false, lastSeen: 0, capabilities: AdapterRegistry.getAdapter(platform).getCapabilities()
           };
-
-          handleAddDevice(newDev);
-          setPairingTarget(newDev);
-          showToast(`Detected ${newDev.name} from QR code. Confirm pairing to connect.`, "warning");
+          const verification = await AdapterRegistry.getAdapter(platform).ping(candidate);
+          if (!verification.online) { showToast(verification.error || "TV protocol verification failed.", "error"); return; }
+          const verified = { ...candidate, isOnline: true, lastSeen: Date.now() };
+          handleAddDevice(verified);
+          if (verified.requiresPairing) { setPairingTarget(verified); showToast("TV verified from QR. Complete the real pairing step.", "warning"); }
+          else showToast("TV verified from QR.", "success");
         }
       }
     } catch (err) {
@@ -576,13 +550,10 @@ export default function App() {
   };
 
   // QR Camera Scan Completed
-  const handleQrScanSuccess = (scannedDevice: TvDevice, pin?: string) => {
-    // A QR payload is metadata, not proof of pairing. The scanner has already
-    // verified the target transport; pairing is still required when the protocol says so.
+  const handleQrScanSuccess = (scannedDevice: TvDevice) => {
+    // QR is setup metadata only. Real protocol verification happens before this callback.
     handleAddDevice(scannedDevice);
-    if (pin) {
-      handlePairingSuccess(scannedDevice);
-    } else if (scannedDevice.requiresPairing) {
+    if (scannedDevice.requiresPairing) {
       setPairingTarget(scannedDevice);
       showToast(`TV verified from QR: ${scannedDevice.name}. Complete the real TV pairing step.`, "warning");
     } else {

@@ -3,7 +3,7 @@ import jsQR from "jsqr";
 import { QrPairingService } from "../../pairing/qrService";
 import { TvDevice } from "../../core/types";
 import { TokenVault } from "../../pairing/tokenVault";
-import { TransportRegistry } from "../../transports/TransportRegistry";
+import { AdapterRegistry } from "../../adapters/AdapterRegistry";
 import {
   Camera,
   X,
@@ -24,7 +24,7 @@ import {
 interface MobileQrScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanSuccess: (device: TvDevice, pin?: string) => void;
+  onScanSuccess: (device: TvDevice) => void;
 }
 
 export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
@@ -129,15 +129,12 @@ export const MobileQrScannerModal: React.FC<MobileQrScannerModalProps> = ({
         }
       };
 
-      const transport = TransportRegistry.getTransportForDevice(candidate);
-      const info = await transport.getDeviceInfo(candidate);
-      if (!info.isAlive) {
-        throw new Error("The TV did not respond to its real protocol verification. Ensure the phone and TV are on the same Wi-Fi.");
-      }
-
+      if (candidate.platform === "generic") throw new Error("The QR protocol is not supported by a verified TV adapter.");
+      const verification = await AdapterRegistry.getAdapterForDevice(candidate).ping(candidate);
+      if (!verification.online) throw new Error(verification.error || "The TV did not respond to its real protocol verification.");
       const device: TvDevice = {
         ...candidate,
-        model: info.model || candidate.model,
+        model: candidate.model,
         isOnline: true,
         lastSeen: Date.now()
       };

@@ -18,7 +18,8 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
 }) => {
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [testResults, setTestResults] = useState<{
-    dns: boolean;
+    backendConnected: boolean;
+    tvVerified: boolean;
     pingMs: number;
     handshake: boolean;
     tokenValid: boolean;
@@ -51,7 +52,8 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
       }
 
       setTestResults({
-        dns: backendOk,
+        backendConnected: backendOk,
+        tvVerified: tvOk,
         pingMs: tvLatency || Math.round(performance.now() - start),
         handshake: tvOk,
         tokenValid: device ? (!device.requiresPairing || device.isPaired) : false,
@@ -145,20 +147,20 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
             {testResults && (
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Network Latency:</span>
+                  <span className="text-zinc-400">TV Latency:</span>
                   <span className="font-mono font-semibold text-emerald-400">{testResults.pingMs} ms</span>
                 </div>
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Socket Handshake:</span>
+                  <span className="text-zinc-400">TV Protocol:</span>
                   <span className="font-semibold text-emerald-400">{testResults.handshake ? "Verified ✅" : "Failed ❌"}</span>
                 </div>
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Pairing State:</span>
-                  <span className="font-semibold text-emerald-400">{testResults.tokenValid ? "Verified" : "Not verified"}</span>
+                  <span className="text-zinc-400">Backend:</span>
+                  <span className="font-semibold text-emerald-400">{testResults.backendConnected ? "Connected" : "Offline"}</span>
                 </div>
                 <div className="p-2.5 bg-zinc-900 border border-zinc-800/80 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">LAN Bandwidth:</span>
-                  <span className="font-mono text-zinc-300">{testResults.throughput}</span>
+                  <span className="text-zinc-400">Pairing:</span>
+                  <span className="font-mono text-zinc-300">{testResults.tokenValid ? "Paired / not required" : "Required / not verified"}</span>
                 </div>
               </div>
             )}

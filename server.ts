@@ -189,10 +189,23 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
   // 2. Test Samsung Tizen SmartView (Port 8001 / 8002)
   if (!targetPort || targetPort === 8001 || targetPort === 8002 || preferredProtocol?.includes("tizen")) {
     try {
-      const isSamsungHttpOpen = await checkTcpPort(cleanIp, 8001, 2000);
-      const isSamsungWsOpen = await checkTcpPort(cleanIp, 8002, 2000);
-
-      if (isSamsungHttpOpen || isSamsungWsOpen) {
+      let verifiedSamsung = false;
+      let samsungPort = 8001;
+      let name = `Samsung Smart TV (${cleanIp})`;
+      let model = "Samsung Tizen TV";
+      try {
+        const res = await fetchWithTimeout(`http://${cleanIp}:8001/api/v2/`, { method: "GET" }, 2500);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.device?.name) name = data.device.name;
+          if (data?.device?.modelName) model = data.device.modelName;
+          const identity = JSON.stringify(data?.device || {}).toLowerCase();
+          verifiedSamsung = identity.includes("samsung") || identity.includes("tizen") || identity.includes("tv");
+        }
+      } catch (err: any) {
+        console.debug(`[Probe] Samsung identity query failed for ${cleanIp}:`, err?.message);
+      }
+      if (verifiedSamsung) { const wsOpen = await checkTcpPort(cleanIp, 8002, 1500); if (wsOpen) samsungPort = 8002;
         let name = `Samsung Smart TV (${cleanIp})`;
         let model = "Samsung Tizen TV";
 
@@ -214,7 +227,7 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
           model,
           platform: "tizen",
           ip: cleanIp,
-          port: isSamsungWsOpen ? 8002 : 8001,
+          port: samsungPort,
           protocol: "samsung_tizen_ws",
           requiresPairing: true,
           isOnline: true,
@@ -349,84 +362,8 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
     }
   }
 
-  // 5. Test Android TV / Google TV Remote Service v2 (Port 6466 / 6467 / 8008 / 5555)
-  if (!targetPort || targetPort === 6467 || targetPort === 6466 || preferredProtocol?.includes("android")) {
-    try {
-      const isAtvPortOpen = (await checkTcpPort(cleanIp, 6467, 2000)) || (await checkTcpPort(cleanIp, 6466, 2000)) || (await checkTcpPort(cleanIp, 8008, 2000));
-      if (isAtvPortOpen) {
-        const device: DiscoveredTvRecord = {
-          id: `androidtv_${cleanIp.replace(/\./g, "_")}`,
-          name: `Android TV / Google TV (${cleanIp})`,
-          manufacturer: "Google / Android TV",
-          model: "Android TV Device",
-          platform: "android_tv",
-          ip: cleanIp,
-          port: 6467,
-          protocol: "android_tv_receiver",
-          requiresPairing: true,
-          isOnline: true,
-          capabilities: {
-            power: "SUPPORTED",
-            navigation: "SUPPORTED",
-            volume: "SUPPORTED",
-            media: "SUPPORTED",
-            keyboard: "SUPPORTED",
-            touchpad: "SUPPORTED",
-            apps: "SUPPORTED",
-            input: "SUPPORTED",
-            voice: "SUPPORTED",
-            channels: "SUPPORTED",
-            ir: "UNSUPPORTED",
-            bluetooth: "SUPPORTED",
-            wifi: "SUPPORTED"
-          },
-          lastSeen: Date.now()
-        };
-
-        verifiedDevicesMap.set(device.id, device);
-        return { success: true, device };
-      }
-    } catch (atvErr: any) {
-      // Android TV probe failed on tested ports
-    }
-  }
-
-  // If a specific custom port was requested, check reachability
-  if (targetPort && targetPort > 0) {
-    const isCustomPortOpen = await checkTcpPort(cleanIp, targetPort, 2000);
-    if (isCustomPortOpen) {
-      const device: DiscoveredTvRecord = {
-        id: `tv_${cleanIp.replace(/\./g, "_")}_${targetPort}`,
-        name: `Smart TV (${cleanIp})`,
-        manufacturer: "Smart TV",
-        model: "Network Connected TV",
-        platform: preferredProtocol || "generic",
-        ip: cleanIp,
-        port: targetPort,
-        protocol: preferredProtocol || "generic_http",
-        requiresPairing: true,
-        isOnline: true,
-        capabilities: {
-          power: "SUPPORTED",
-          navigation: "SUPPORTED",
-          volume: "SUPPORTED",
-          media: "SUPPORTED",
-          keyboard: "UNKNOWN",
-          touchpad: "UNSUPPORTED",
-          apps: "SUPPORTED",
-          input: "SUPPORTED",
-          voice: "UNSUPPORTED",
-          channels: "SUPPORTED",
-          ir: "UNSUPPORTED",
-          bluetooth: "UNSUPPORTED",
-          wifi: "SUPPORTED"
-        },
-        lastSeen: Date.now()
-      };
-      verifiedDevicesMap.set(device.id, device);
-      return { success: true, device };
-    }
-  }
+  // Android TV / Google TV Remote Service v2 requires native mutual-TLS verification in the APK.
+  if (preferredProtocol?.includes("android")) return { success: false, error: "REQUIRES_NATIVE_BRIDGE: Android TV Remote Service v2 must be verified by the native Android bridge." };
 
   // No verified open TV protocol found
   return {

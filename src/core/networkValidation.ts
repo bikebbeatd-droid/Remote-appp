@@ -52,10 +52,10 @@ export function validateTvTarget(ip: string, port?: number): ValidationResult {
     return { valid: false, error: "INVALID_IP_TARGET: Multicast addresses cannot be directly targeted for unicast TV control." };
   }
 
-  // Reject cloud metadata service (169.254.169.254) and link-local (169.254.0.0/16)
-  if (cleanIp.startsWith("169.254.")) {
-    return { valid: false, error: "SECURITY_VIOLATION: Link-local and cloud metadata addresses (169.254.x.x) are strictly forbidden." };
-  }
+  const octets = cleanIp.split(".").map(Number);
+  const isPrivateLan = octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) || (octets[0] === 192 && octets[1] === 168);
+  if (cleanIp.startsWith("169.254.")) return { valid: false, error: "SECURITY_VIOLATION: Link-local and cloud metadata addresses are forbidden." };
+  if (!isPrivateLan) return { valid: false, error: "TV_TARGET_MUST_BE_PRIVATE_LAN: Enter the TV IP from the same local Wi-Fi/LAN (192.168.x.x, 10.x.x.x, or 172.16-31.x.x)." };
 
   // Port validation if provided
   if (port !== undefined && port !== null) {
