@@ -55,21 +55,29 @@ try {
     </ErrorBoundary>,
   );
 
-  // React 19 may commit asynchronously. The previous implementation fired the
-  // boot-complete event immediately after root.render(), before React replaced
-  // the static boot screen. That left the Android APK permanently showing
-  // "Loading…" with a Reload button. Wait until the DOM commit is observable.
-  const notifyAppMounted = () => {
-    const mounted = rootElement.querySelector("#app-error-boundary-screen") ||
-      rootElement.querySelector("main") ||
-      rootElement.querySelector("[data-ustv-app]");
-    if (mounted) {
+  // React 19 commits asynchronously. Do not look for a specific child selector:
+  // onboarding, TV mode, and error-boundary screens intentionally use different
+  // roots. The only reliable boot-complete signal is that React has replaced the
+  // static #native-boot-screen inside #root.
+  //
+  // A MutationObserver also avoids an infinite requestAnimationFrame loop on
+  // slower Android WebViews and guarantees that the boot screen is removed as
+  // soon as React commits its first render.
+  const nativeBootScreen = document.getElementById("native-boot-screen");
+  const appMountObserver = new MutationObserver(() => {
+    const bootStillPresent = document.getElementById("native-boot-screen");
+    const firstChild = rootElement.firstElementChild;
+    if (!bootStillPresent && firstChild) {
+      appMountObserver.disconnect();
       window.dispatchEvent(new Event("ustv:app-mounted"));
-      return;
     }
-    window.requestAnimationFrame(notifyAppMounted);
-  };
-  window.requestAnimationFrame(notifyAppMounted);
+  });
+
+  if (nativeBootScreen) {
+    appMountObserver.observe(rootElement, { childList: true, subtree: true });
+  } else if (rootElement.firstElementChild) {
+    window.dispatchEvent(new Event("ustv:app-mounted"));
+  }
 } catch (error) {
   showBootError(error);
 }
