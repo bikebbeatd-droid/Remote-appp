@@ -13,8 +13,13 @@ def calculateVersionCode = { String version ->
     }
 }
 
-def appVersionName = System.getenv("VERSION_NAME") ?: (project.hasProperty('versionName') ? project.property('versionName') : "1.0.0")
+// Release versions must be explicit and monotonically increasing so Android can
+// install a new APK as an update instead of treating it as a separate build.
+def appVersionName = System.getenv("VERSION_NAME") ?: (project.hasProperty('versionName') ? project.property('versionName') : "1.0.214")
 def appVersionCode = System.getenv("VERSION_CODE") ? System.getenv("VERSION_CODE").toInteger() : (project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : calculateVersionCode(appVersionName))
+if (appVersionCode < 1021400) {
+    throw new GradleException("VERSION_CODE must be >= 1021400 for update-compatible releases.")
+}
 
 android {
     namespace = "com.universal.smarttv.remote"
@@ -60,10 +65,23 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            // Never silently produce an unsigned release APK. A release APK must
+            // use the same permanent signing key for future in-place updates.
             def keystorePath = System.getenv("ANDROID_KEYSTORE_FILE") ?: (project.hasProperty('RELEASE_STORE_FILE') ? project.property('RELEASE_STORE_FILE') : null)
-            if (keystorePath && file(keystorePath).exists()) {
-                signingConfig signingConfigs.release
+            if (!keystorePath || !file(keystorePath).exists()) {
+                throw new GradleException("Release signing keystore is missing. Configure ANDROID_KEYSTORE_FILE/RELEASE_STORE_FILE and the matching credentials.")
             }
+
+            def storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: (project.hasProperty('RELEASE_STORE_PASSWORD') ? project.property('RELEASE_STORE_PASSWORD') : "")
+            def keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: (project.hasProperty('RELEASE_KEY_ALIAS') ? project.property('RELEASE_KEY_ALIAS') : "")
+            def keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: (project.hasProperty('RELEASE_KEY_PASSWORD') ? project.property('RELEASE_KEY_PASSWORD') : "")
+
+            if (!storePassword || !keyAlias || !keyPassword) {
+                throw new GradleException("Release signing credentials are missing.")
+            }
+
+            signingConfig signingConfigs.release
         }
     }
 }
