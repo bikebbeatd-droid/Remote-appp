@@ -1,5 +1,5 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, flushSync } from "react-dom/client";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import App from "./App.tsx";
 import "./index.css";
@@ -49,33 +49,17 @@ const root = createRoot(rootElement, {
 });
 
 try {
-  root.render(
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>,
-  );
-
-  // React 19 commits asynchronously. Do not look for a specific child selector:
-  // onboarding, TV mode, and error-boundary screens intentionally use different
-  // roots. The only reliable boot-complete signal is that React has replaced the
-  // static #native-boot-screen inside #root.
-  //
-  // A MutationObserver also avoids an infinite requestAnimationFrame loop on
-  // slower Android WebViews and guarantees that the boot screen is removed as
-  // soon as React commits its first render.
-  const nativeBootScreen = document.getElementById("native-boot-screen");
-  const appMountObserver = new MutationObserver(() => {
-    const bootStillPresent = document.getElementById("native-boot-screen");
-    const firstChild = rootElement.firstElementChild;
-    if (!bootStillPresent && firstChild) {
-      appMountObserver.disconnect();
-      window.dispatchEvent(new Event("ustv:app-mounted"));
-    }
+  flushSync(() => {
+    root.render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>,
+    );
   });
 
-  if (nativeBootScreen) {
-    appMountObserver.observe(rootElement, { childList: true, subtree: true });
-  } else if (rootElement.firstElementChild) {
+  // React 19 has now committed the first tree synchronously. Remove the
+  // static boot screen immediately instead of waiting for a reload watchdog.
+  if (rootElement.firstElementChild) {
     window.dispatchEvent(new Event("ustv:app-mounted"));
   }
 } catch (error) {
