@@ -257,45 +257,64 @@ async function probeTvTarget(ip: string, targetPort?: number, preferredProtocol?
     }
   }
 
-  // 3. Test LG webOS SSAP (Port 3000 / 3001)
+  // 3. Test LG webOS SSAP (Port 3000 / 3001).
+  // A listening port is NOT enough evidence: perform a real SSAP registration handshake.
   if (!targetPort || targetPort === 3000 || targetPort === 3001 || preferredProtocol?.includes("webos")) {
-    try {
-      const isLgPortOpen = (await checkTcpPort(cleanIp, 3001, 2000)) || (await checkTcpPort(cleanIp, 3000, 2000));
-      if (isLgPortOpen) {
-        const device: DiscoveredTvRecord = {
-          id: `webos_${cleanIp.replace(/\./g, "_")}`,
-          name: `LG webOS TV (${cleanIp})`,
-          manufacturer: "LG Electronics",
-          model: "LG webOS Smart TV",
-          platform: "webos",
-          ip: cleanIp,
-          port: 3001,
-          protocol: "lg_webos_ssap",
-          requiresPairing: true,
-          isOnline: true,
-          capabilities: {
-            power: "SUPPORTED",
-            navigation: "SUPPORTED",
-            volume: "SUPPORTED",
-            media: "SUPPORTED",
-            keyboard: "SUPPORTED",
-            touchpad: "SUPPORTED",
-            apps: "SUPPORTED",
-            input: "SUPPORTED",
-            voice: "SUPPORTED",
-            channels: "SUPPORTED",
-            ir: "UNSUPPORTED",
-            bluetooth: "SUPPORTED",
-            wifi: "SUPPORTED"
-          },
-          lastSeen: Date.now()
-        };
-
-        verifiedDevicesMap.set(device.id, device);
-        return { success: true, device };
+    const candidates = targetPort ? [targetPort] : [3001, 3000];
+    for (const lgPort of candidates) {
+      try {
+        const scheme = lgPort === 3001 ? "wss" : "ws";
+        const socket = new WebSocket(`${scheme}://${cleanIp}:${lgPort}`, lgPort === 3001 ? { rejectUnauthorized: false } : undefined);
+        const result = await new Promise<{registered:boolean;paired:boolean;name?:string;model?:string;error?:string}>((resolve) => {
+          let settled = false;
+          const finish = (value: any) => { if (!settled) { settled = true; try { socket.close(); } catch {} resolve(value); } };
+          const timer = setTimeout(() => finish({ registered: false, paired: false, error: "LG SSAP registration timeout." }), 6000);
+          socket.on("open", () => {
+            socket.send(JSON.stringify({
+              type: "register", id: "verify_0",
+              payload: {
+                "client-key": null, forcePairing: false, pairingType: "PROMPT",
+                manifest: { manifestVersion: 1, appVersion: "1.0.0", permissions: ["READ_NETWORK_STATE", "READ_TV_CHANNEL_LIST", "CONTROL_INPUT_TV"] }
+              }
+            }));
+          });
+          socket.on("message", (raw) => {
+            try {
+              const msg = JSON.parse(raw.toString());
+              clearTimeout(timer);
+              if (msg?.type === "registered") finish({ registered: true, paired: true });
+              else if (msg?.type === "response" && msg?.payload?.pairingType) finish({ registered: true, paired: false });
+              else if (msg?.type === "error") finish({ registered: false, paired: false, error: msg.error || msg.payload?.errorText || "LG SSAP rejected registration." });
+            } catch {}
+          });
+          socket.on("error", (err) => { clearTimeout(timer); finish({ registered: false, paired: false, error: err.message }); });
+        });
+        if (result.registered) {
+          const device: DiscoveredTvRecord = {
+            id: `webos_${cleanIp.replace(/\./g, "_")}`,
+            name: `LG webOS TV (${cleanIp})`,
+            manufacturer: "LG Electronics",
+            model: "LG webOS Smart TV",
+            platform: "webos",
+            ip: cleanIp,
+            port: lgPort,
+            protocol: "lg_webos_ssap",
+            requiresPairing: !result.paired,
+            isOnline: true,
+            capabilities: {
+              power: "SUPPORTED", navigation: "SUPPORTED", volume: "SUPPORTED", media: "SUPPORTED",
+              keyboard: "SUPPORTED", touchpad: "SUPPORTED", apps: "SUPPORTED", input: "SUPPORTED",
+              voice: "UNSUPPORTED", channels: "SUPPORTED", ir: "UNSUPPORTED",
+              bluetooth: "DEVICE_DEPENDENT", wifi: "SUPPORTED"
+            },
+            lastSeen: Date.now()
+          };
+          verifiedDevicesMap.set(device.id, device);
+          return { success: true, device };
+        }
+      } catch (err: any) {
+        console.debug(`[Probe] LG SSAP verification failed for ${cleanIp}:`, err?.message);
       }
-    } catch (err: any) {
-      // LG webOS probe failed, continue to next candidate
     }
   }
 

@@ -139,6 +139,24 @@ export class SamsungTizenAdapter implements TvAdapter {
     let socket: WebSocket | undefined;
     try {
       socket = await this.openSocket(device);
+      const responsePromise = new Promise<any>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          socket?.removeEventListener("message", onMessage);
+          reject(new Error("Samsung TV did not return a protocol response after the remote command."));
+        }, 2500);
+        const onMessage = (event: MessageEvent) => {
+          clearTimeout(timer);
+          socket?.removeEventListener("message", onMessage);
+          try {
+            const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+            resolve(data);
+          } catch {
+            resolve(event.data);
+          }
+        };
+        socket?.addEventListener("message", onMessage);
+      });
+
       socket.send(JSON.stringify({
         method: "ms.remote.control",
         params: {
@@ -149,15 +167,20 @@ export class SamsungTizenAdapter implements TvAdapter {
         }
       }));
 
+      const response = await responsePromise;
+      const responseText = typeof response === "string" ? response : JSON.stringify(response);
+      const rejected = /error|reject|failed|unauthor/i.test(responseText);
       const latencyMs = Math.round(performance.now() - startTime);
       try { socket.close(); } catch {}
       return {
-        success: true,
+        success: !rejected,
         command,
         value,
         timestamp: Date.now(),
         latencyMs,
-        protocol: "samsung_tizen_ws_direct"
+        protocol: "samsung_tizen_ws_direct",
+        error: rejected ? "Samsung TV returned a protocol error for the remote command." : undefined,
+        rawPayload: response
       };
     } catch (err: any) {
       try { socket?.close(); } catch {}
