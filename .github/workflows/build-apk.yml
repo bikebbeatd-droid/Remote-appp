@@ -145,6 +145,14 @@ jobs:
             if [ "$name" != "$ASSET" ] && [[ "$name" == *.apk ]]; then gh release delete-asset "$TAG" "$name" --yes || true; fi
           done
 
+      - name: Upload APK for Firebase Test Lab
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-test-apk
+          path: ${{ env.APK }}
+          retention-days: 7
+
       - name: Report build result
         if: always()
         run: |
@@ -153,3 +161,59 @@ jobs:
           echo "- Signing: ${{ steps.signing.outputs.signed == 'true' && 'stable release keystore' || 'runner debug keystore' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- If stable signing secrets are absent, this is a debug-signed test APK and cannot update an APK signed with a different certificate." >> "$GITHUB_STEP_SUMMARY"
           echo "- APK distribution: GitHub Release + Actions artifact" >> "$GITHUB_STEP_SUMMARY"
+
+  firebase-test-lab:
+    name: Firebase Test Lab multi-device smoke tests
+    needs: build-apk
+    if: needs.build-apk.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firebase-test-apk
+          path: firebase-apk
+
+      - name: Authenticate to Google Cloud
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Set up Google Cloud CLI
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Firebase Test Lab Robo matrix
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != '' && env.FIREBASE_PROJECT_ID != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(find firebase-apk -type f -name '*.apk' | head -n 1)
+          test -s "$APK"
+          gcloud config set project "$FIREBASE_PROJECT_ID"
+          gcloud firebase test android run \
+            --type robo \
+            --app "$APK" \
+            --device model=oriole,version=35,locale=en,orientation=portrait \
+            --device model=redfin,version=34,locale=en,orientation=portrait \
+            --device model=panther,version=33,locale=en,orientation=portrait \
+            --timeout 120s \
+            --num-flaky-test-attempts 1 \
+            --client-details matrixLabel="Remote-appp-CI"
+
+      - name: Explain Firebase Test Lab configuration
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON == '' || env.FIREBASE_PROJECT_ID == ''
+        shell: bash
+        run: |
+          {
+            echo "## Firebase Test Lab"
+            echo "Multi-device cloud smoke testing is configured but skipped because Firebase credentials/project secrets are not configured."
+            echo "Required GitHub Actions secrets: FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON."
+            echo "Cloud tests validate Android startup/UI on Google-hosted devices; they cannot prove reachability of the user's private LAN TV."
+          } >> "$GITHUB_STEP_SUMMARY"
