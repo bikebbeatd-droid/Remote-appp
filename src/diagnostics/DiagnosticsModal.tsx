@@ -61,7 +61,8 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
       });
     } catch {
       setTestResults({
-        dns: false,
+        backendConnected: false,
+        tvVerified: false,
         pingMs: 0,
         handshake: false,
         tokenValid: false,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { TvDevice, RemoteMode, RemoteCommandType, ButtonMapping, ConnectionState } from "./core/types";
+import { AdapterRegistry } from "./adapters/AdapterRegistry";
 import { TransportRegistry } from "./transports/TransportRegistry";
 import { CommandEngine } from "./core/commands/CommandEngine";
 import { globalConnectionManager } from "./core/connection/ConnectionManager";
@@ -260,12 +261,22 @@ export default function App() {
             model: "Pending verification", platform: platform as TvDevice["platform"], ip, port, protocol: decodeURIComponent(proto),
             requiresPairing: pairing, isPaired: false, isOnline: false, lastSeen: 0, capabilities: AdapterRegistry.getAdapter(platform).getCapabilities()
           };
-          const verification = await AdapterRegistry.getAdapter(platform).ping(candidate);
-          if (!verification.online) { showToast(verification.error || "TV protocol verification failed.", "error"); return; }
-          const verified = { ...candidate, isOnline: true, lastSeen: Date.now() };
-          handleAddDevice(verified);
-          if (verified.requiresPairing) { setPairingTarget(verified); showToast("TV verified from QR. Complete the real pairing step.", "warning"); }
-          else showToast("TV verified from QR.", "success");
+          void AdapterRegistry.getAdapter(platform).ping(candidate).then((verification) => {
+            if (!verification.online) {
+              showToast(verification.error || "TV protocol verification failed.", "error");
+              return;
+            }
+            const verified = { ...candidate, isOnline: true, lastSeen: Date.now() };
+            handleAddDevice(verified);
+            if (verified.requiresPairing) {
+              setPairingTarget(verified);
+              showToast("TV verified from QR. Complete the real pairing step.", "warning");
+            } else {
+              showToast("TV verified from QR.", "success");
+            }
+          }).catch((error) => {
+            showToast(error?.message || "TV protocol verification failed.", "error");
+          });
         }
       }
     } catch (err) {
